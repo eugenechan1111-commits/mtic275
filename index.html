@@ -1,0 +1,2512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NGO Accounting System</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --teal-900: #0d3b38;
+  --teal-800: #134e4a;
+  --teal-700: #0f766e;
+  --teal-600: #0d9488;
+  --teal-500: #14b8a6;
+  --teal-400: #2dd4bf;
+  --teal-100: #ccfbf1;
+  --teal-50:  #f0fdfa;
+  --sage:     #52796f;
+  --amber:    #f59e0b;
+  --red:      #ef4444;
+  --green:    #22c55e;
+  --ink:      #1a2e2c;
+  --muted:    #6b7280;
+  --border:   #d1fae5;
+  --surface:  #ffffff;
+  --bg:       #f0fdf9;
+  --sidebar-w: 240px;
+}
+
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;display:flex}
+
+/* ── SIDEBAR ── */
+#sidebar{
+  width:var(--sidebar-w);min-height:100vh;background:var(--teal-800);
+  display:flex;flex-direction:column;position:fixed;top:0;left:0;z-index:100;
+}
+.brand{padding:28px 24px 20px;border-bottom:1px solid rgba(255,255,255,.1)}
+.brand h1{font-family:'DM Serif Display',serif;color:#fff;font-size:1.3rem;line-height:1.2}
+.brand span{color:var(--teal-400);font-size:.72rem;font-weight:500;letter-spacing:.08em;text-transform:uppercase}
+nav{flex:1;padding:16px 0}
+.nav-section{padding:8px 16px 4px;color:var(--teal-400);font-size:.65rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase}
+.nav-item{
+  display:flex;align-items:center;gap:10px;padding:10px 20px;color:rgba(255,255,255,.75);
+  cursor:pointer;font-size:.87rem;font-weight:400;transition:all .15s;border-left:3px solid transparent;
+}
+.nav-item:hover{background:rgba(255,255,255,.08);color:#fff}
+.nav-item.active{background:rgba(45,212,191,.15);color:var(--teal-400);border-left-color:var(--teal-400)}
+.nav-item svg{width:16px;height:16px;flex-shrink:0}
+.sidebar-footer{padding:16px 20px;border-top:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.4);font-size:.72rem}
+
+/* ── MAIN ── */
+#main{margin-left:var(--sidebar-w);flex:1;padding:32px;min-height:100vh}
+.page{display:none;animation:fadeIn .2s ease}
+.page.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+.page-header{margin-bottom:28px}
+.page-header h2{font-family:'DM Serif Display',serif;font-size:1.8rem;color:var(--teal-900)}
+.page-header p{color:var(--muted);font-size:.88rem;margin-top:4px}
+
+/* ── CARDS ── */
+.card{background:var(--surface);border-radius:12px;border:1px solid var(--border);padding:24px;margin-bottom:20px}
+.card-title{font-size:.72rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:16px}
+
+/* ── METRIC CARDS ── */
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.metric{background:var(--surface);border-radius:12px;border:1px solid var(--border);padding:20px}
+.metric-label{font-size:.72rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.metric-value{font-family:'DM Serif Display',serif;font-size:1.8rem;color:var(--teal-900)}
+.metric-value.income{color:#059669}
+.metric-value.expense{color:var(--red)}
+.metric-value.net.pos{color:#059669}
+.metric-value.net.neg{color:var(--red)}
+.metric-sub{font-size:.75rem;color:var(--muted);margin-top:4px}
+.metric-badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:.7rem;font-weight:600;margin-top:6px}
+.badge-green{background:#dcfce7;color:#166534}
+.badge-red{background:#fee2e2;color:#991b1b}
+.badge-blue{background:#dbeafe;color:#1e40af}
+.badge-amber{background:#fef3c7;color:#92400e}
+
+/* ── TABLES ── */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.84rem}
+thead tr{border-bottom:2px solid var(--border)}
+th{padding:10px 12px;text-align:left;font-size:.7rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+th.num{text-align:right}
+td{padding:10px 12px;border-bottom:1px solid #f0fdf4;color:var(--ink)}
+td.num{text-align:right;font-variant-numeric:tabular-nums;font-weight:500}
+td.pos{color:#059669}
+td.neg{color:var(--red)}
+tr:hover td{background:#f0fdf9}
+.tfoot td{font-weight:700;border-top:2px solid var(--border);border-bottom:none;background:var(--teal-50)}
+.tfoot td.pos{color:#059669;font-size:1rem}
+.tfoot td.neg{color:var(--red);font-size:1rem}
+
+/* ── FORMS ── */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.form-group{display:flex;flex-direction:column;gap:6px}
+.form-group.full{grid-column:1/-1}
+label{font-size:.78rem;font-weight:600;color:var(--teal-900)}
+input,select,textarea{
+  border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;
+  font-family:'DM Sans',sans-serif;font-size:.88rem;color:var(--ink);
+  background:var(--surface);transition:border-color .15s,box-shadow .15s;
+  outline:none;
+}
+input:focus,select:focus,textarea:focus{border-color:var(--teal-500);box-shadow:0 0 0 3px rgba(20,184,166,.15)}
+.radio-group{display:flex;gap:12px}
+.radio-label{display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.88rem;font-weight:500}
+.radio-label input[type=radio]{width:16px;height:16px;accent-color:var(--teal-600)}
+
+/* ── BUTTONS ── */
+.btn{
+  display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:8px;
+  font-family:'DM Sans',sans-serif;font-size:.84rem;font-weight:600;cursor:pointer;
+  border:none;transition:all .15s;
+}
+.btn-primary{background:var(--teal-700);color:#fff}
+.btn-primary:hover{background:var(--teal-600)}
+.btn-secondary{background:var(--surface);color:var(--teal-700);border:1.5px solid var(--teal-300,#5eead4)}
+.btn-secondary:hover{background:var(--teal-50)}
+.btn-sm{padding:6px 12px;font-size:.78rem}
+.btn-danger{background:#fee2e2;color:#991b1b}
+.btn-danger:hover{background:#fecaca}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+
+/* ── REPORT HEADER ── */
+.report-meta{text-align:center;padding:16px;border-bottom:2px solid var(--teal-100);margin-bottom:4px}
+.report-meta h3{font-family:'DM Serif Display',serif;font-size:1.4rem;color:var(--teal-900)}
+.report-meta p{color:var(--muted);font-size:.82rem}
+
+/* ── ACCOUNT TYPE HEADERS ── */
+.section-row td{
+  font-weight:700;background:var(--teal-50);color:var(--teal-800);
+  font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;
+  padding:8px 12px;border-bottom:1px solid var(--border);
+}
+.subsection-row td{font-weight:600;color:var(--teal-700);padding:8px 12px 4px;font-size:.82rem}
+.subtotal-row td{font-weight:600;background:#f8fffe;border-top:1px solid var(--border);font-style:italic}
+.grand-total-row td{font-weight:700;background:var(--teal-50);border-top:2px solid var(--teal-400);font-size:.95rem}
+
+/* ── FILTERS ── */
+.filter-bar{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:20px}
+.filter-bar .form-group{margin:0}
+
+/* ── TOAST ── */
+#toast{
+  position:fixed;bottom:24px;right:24px;background:var(--teal-800);color:#fff;
+  padding:12px 20px;border-radius:10px;font-size:.84rem;font-weight:500;
+  transform:translateY(60px);opacity:0;transition:all .25s;z-index:999;
+  display:flex;align-items:center;gap:8px;
+}
+#toast.show{transform:none;opacity:1}
+
+/* ── DRILL-DOWN MODAL ── */
+#drill-overlay{
+  position:fixed;inset:0;background:rgba(13,59,56,.45);backdrop-filter:blur(3px);
+  z-index:200;display:none;align-items:center;justify-content:center;padding:24px;
+}
+#drill-overlay.open{display:flex}
+#drill-modal{
+  background:var(--surface);border-radius:16px;width:100%;max-width:820px;
+  max-height:88vh;display:flex;flex-direction:column;
+  box-shadow:0 24px 60px rgba(13,59,56,.3);overflow:hidden;
+}
+#drill-header{
+  display:flex;align-items:flex-start;justify-content:space-between;
+  padding:20px 24px 16px;border-bottom:1px solid var(--border);
+  background:linear-gradient(135deg,var(--teal-800),var(--teal-700));
+}
+#drill-title{color:#fff}
+#drill-title h3{font-family:'DM Serif Display',serif;font-size:1.2rem}
+#drill-title p{color:var(--teal-400);font-size:.78rem;margin-top:3px}
+#drill-close{
+  background:rgba(255,255,255,.15);border:none;color:#fff;width:32px;height:32px;
+  border-radius:8px;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;
+  justify-content:center;flex-shrink:0;transition:background .15s;
+}
+#drill-close:hover{background:rgba(255,255,255,.28)}
+#drill-summary{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:0;
+  border-bottom:1px solid var(--border);
+}
+.drill-stat{padding:12px 20px;border-right:1px solid var(--border)}
+.drill-stat:last-child{border-right:none}
+.drill-stat-label{font-size:.65rem;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.drill-stat-value{font-family:'DM Serif Display',serif;font-size:1.15rem;color:var(--teal-900);margin-top:3px}
+.drill-stat-value.pos{color:#059669}
+.drill-stat-value.neg{color:var(--red)}
+#drill-body{overflow-y:auto;padding:16px 24px 24px;flex:1}
+.drill-amount{
+  cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px;
+  transition:opacity .12s;
+}
+.drill-amount:hover{opacity:.72}
+
+/* ── PRINT ── */
+@media print{
+  #drill-overlay{display:none!important}
+  #sidebar,#main>.page-header .actions,.actions,.filter-bar,.no-print{display:none!important}
+  #main{margin:0;padding:0}
+  .card{border:none;box-shadow:none}
+  body{background:#fff}
+}
+
+/* ── CHART OF ACCOUNTS TREE ── */
+.coa-type{font-weight:700;background:var(--teal-800);color:#fff;padding:8px 16px;border-radius:8px 8px 0 0;font-size:.78rem;letter-spacing:.1em;text-transform:uppercase;margin-top:16px}
+.coa-type:first-child{margin-top:0}
+.coa-subtype{font-weight:600;background:var(--teal-50);color:var(--teal-700);padding:6px 16px;font-size:.78rem;border-left:3px solid var(--teal-400)}
+.coa-row{display:grid;grid-template-columns:80px 1fr 160px 80px 100px;gap:0;padding:8px 16px;border-bottom:1px solid var(--border);align-items:center;font-size:.84rem}
+.coa-row:hover{background:var(--teal-50)}
+.coa-code{font-weight:600;color:var(--teal-700);font-size:.78rem}
+.coa-balance{text-align:right;font-variant-numeric:tabular-nums;font-weight:500}
+
+/* ── DASHBOARD RECENT ── */
+.tx-row{display:grid;grid-template-columns:90px 1fr 120px 80px 90px;gap:8px;padding:10px 12px;border-bottom:1px solid var(--border);font-size:.83rem;align-items:center}
+.tx-row:hover{background:var(--teal-50)}
+.tx-date{color:var(--muted);font-size:.78rem}
+.tx-type{padding:2px 8px;border-radius:99px;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;text-align:center}
+.type-income{background:#dcfce7;color:#166534}
+.type-expense{background:#fee2e2;color:#991b1b}
+.type-debit{background:#dbeafe;color:#1e40af}
+.type-credit{background:#fef3c7;color:#92400e}
+
+@media(max-width:900px){
+  :root{--sidebar-w:200px}
+  .metrics{grid-template-columns:1fr 1fr}
+  .form-grid{grid-template-columns:1fr}
+}
+
+/* ── LOGIN ── */
+#login-screen{
+  position:fixed;inset:0;z-index:999;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,var(--teal-900) 0%,#0a2e2b 50%,#061a18 100%);
+  overflow:hidden;
+}
+#login-screen::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse 80% 60% at 50% 0%,rgba(45,212,191,.18) 0%,transparent 70%),
+             radial-gradient(ellipse 40% 40% at 80% 80%,rgba(20,184,166,.12) 0%,transparent 60%);
+}
+.login-bg-circles{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.login-bg-circles span{
+  position:absolute;border-radius:50%;border:1px solid rgba(45,212,191,.12);
+}
+.login-bg-circles span:nth-child(1){width:600px;height:600px;top:-200px;right:-150px;}
+.login-bg-circles span:nth-child(2){width:400px;height:400px;bottom:-100px;left:-100px;}
+.login-bg-circles span:nth-child(3){width:200px;height:200px;top:40%;left:10%;}
+.login-card{
+  position:relative;z-index:1;background:rgba(255,255,255,.04);
+  backdrop-filter:blur(20px);border:1px solid rgba(45,212,191,.2);
+  border-radius:20px;padding:44px 40px;width:100%;max-width:400px;
+  box-shadow:0 32px 80px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.04) inset;
+}
+.login-logo{text-align:center;margin-bottom:32px}
+.login-logo h1{font-family:'DM Serif Display',serif;color:#fff;font-size:1.9rem;letter-spacing:-.01em}
+.login-logo p{color:var(--teal-400);font-size:.78rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;margin-top:4px}
+.login-logo .logo-icon{
+  width:56px;height:56px;background:linear-gradient(135deg,var(--teal-600),var(--teal-400));
+  border-radius:14px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 8px 24px rgba(20,184,166,.4);
+}
+.login-logo .logo-icon svg{width:28px;height:28px;stroke:#fff}
+.login-form-group{margin-bottom:18px}
+.login-form-group label{display:block;color:rgba(255,255,255,.6);font-size:.78rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px}
+.login-form-group input{
+  width:100%;background:rgba(255,255,255,.07);border:1.5px solid rgba(45,212,191,.2);
+  border-radius:10px;padding:12px 14px;color:#fff;font-family:'DM Sans',sans-serif;
+  font-size:.92rem;outline:none;transition:border-color .15s,background .15s;
+}
+.login-form-group input::placeholder{color:rgba(255,255,255,.25)}
+.login-form-group input:focus{border-color:var(--teal-400);background:rgba(255,255,255,.1)}
+.login-btn{
+  width:100%;padding:13px;background:linear-gradient(135deg,var(--teal-600),var(--teal-500));
+  border:none;border-radius:10px;color:#fff;font-family:'DM Sans',sans-serif;font-size:.95rem;
+  font-weight:600;cursor:pointer;transition:all .15s;margin-top:8px;
+  box-shadow:0 4px 16px rgba(20,184,166,.3);
+}
+.login-btn:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(20,184,166,.4)}
+.login-btn:active{transform:none}
+.login-error{
+  background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);
+  border-radius:8px;padding:10px 14px;color:#fca5a5;font-size:.82rem;
+  margin-bottom:16px;display:none;
+}
+.login-error.show{display:block}
+.login-hint{text-align:center;margin-top:20px;color:rgba(255,255,255,.3);font-size:.74rem;line-height:1.6}
+.login-hint strong{color:rgba(255,255,255,.5)}
+
+/* ── USER BADGE (sidebar) ── */
+.user-badge{
+  padding:12px 16px;border-top:1px solid rgba(255,255,255,.08);
+  display:flex;align-items:center;gap:10px;
+}
+.user-avatar{
+  width:32px;height:32px;border-radius:50%;
+  background:linear-gradient(135deg,var(--teal-600),var(--teal-400));
+  display:flex;align-items:center;justify-content:center;
+  font-weight:700;font-size:.8rem;color:#fff;flex-shrink:0;
+}
+.user-info{flex:1;min-width:0}
+.user-name{color:#fff;font-size:.82rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.user-role{font-size:.68rem;color:var(--teal-400);font-weight:500;letter-spacing:.05em;text-transform:uppercase}
+.logout-btn{
+  background:rgba(255,255,255,.08);border:none;color:rgba(255,255,255,.5);
+  width:28px;height:28px;border-radius:6px;cursor:pointer;display:flex;
+  align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;
+}
+.logout-btn:hover{background:rgba(239,68,68,.2);color:#fca5a5}
+.login-screen-hidden{display:none!important}
+
+/* ── LOADING OVERLAY ── */
+#loading-overlay{
+  position:fixed;inset:0;z-index:998;background:rgba(13,59,56,.7);
+  backdrop-filter:blur(4px);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:16px;
+}
+#loading-overlay.hidden{display:none}
+.spinner{
+  width:44px;height:44px;border:3px solid rgba(45,212,191,.2);
+  border-top-color:var(--teal-400);border-radius:50%;
+  animation:spin .7s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-msg{color:#fff;font-size:.88rem;font-weight:500;letter-spacing:.04em}
+
+/* ── READONLY OVERLAY ── */
+.readonly-hint{
+  display:inline-block;padding:3px 10px;background:#fef3c7;color:#92400e;
+  border-radius:99px;font-size:.7rem;font-weight:600;margin-left:8px;vertical-align:middle;
+}
+</style>
+</head>
+<body>
+
+<!-- LOADING OVERLAY -->
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <div class="loading-msg" id="loading-msg">Connecting to database…</div>
+</div>
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen">
+  <div class="login-bg-circles"><span></span><span></span><span></span></div>
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+      </div>
+      <h1 id="login-app-name">NGO Ledger</h1>
+      <p>Accounting System</p>
+    </div>
+    <div class="login-error" id="login-error">Incorrect username or password. Please try again.</div>
+    <form id="login-form" onsubmit="doLogin(event)">
+      <div class="login-form-group">
+        <label>Username</label>
+        <input type="text" id="login-username" placeholder="Enter your username" autocomplete="username" required>
+      </div>
+      <div class="login-form-group">
+        <label>Password</label>
+        <input type="password" id="login-password" placeholder="Enter your password" autocomplete="current-password" required>
+      </div>
+      <button type="submit" class="login-btn">Sign In</button>
+    </form>
+  </div>
+</div>
+
+<!-- SIDEBAR -->
+<aside id="sidebar">
+  <div class="brand">
+    <h1 id="sidebar-app-name">NGO Ledger</h1>
+    <span id="sidebar-org-name">Accounting System</span>
+  </div>
+  <nav>
+    <div class="nav-section">Overview</div>
+    <div class="nav-item active" data-page="dashboard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Dashboard
+    </div>
+    <div class="nav-section">Transactions</div>
+    <div class="nav-item" data-page="journal">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+      Journal Entry
+    </div>
+    <div class="nav-item" data-page="ledger">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+      General Ledger
+    </div>
+    <div class="nav-section">Reports</div>
+    <div class="nav-item" data-page="pnl">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      Income Statement
+    </div>
+    <div class="nav-item" data-page="balance">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="2" x2="12" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      Balance Sheet
+    </div>
+    <div class="nav-item" data-page="bank">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+      Bank Transactions
+    </div>
+    <div class="nav-item" data-page="coa-report">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 0 1 0 10h-2"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+      COA Report
+    </div>
+    <div class="nav-section">Setup</div>
+    <div class="nav-item" data-page="users">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Users
+    </div>
+    <div class="nav-item" data-page="settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Settings
+    </div>
+    <div class="nav-item" data-page="coa">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+      Chart of Accounts
+    </div>
+  </nav>
+  <div class="user-badge" id="user-badge">
+    <div class="user-avatar" id="user-avatar">A</div>
+    <div class="user-info">
+      <div class="user-name" id="user-display-name">Admin</div>
+      <div class="user-role" id="user-display-role">Administrator</div>
+    </div>
+    <button class="logout-btn" onclick="doLogout()" title="Sign out">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+    </button>
+  </div>
+  <div class="sidebar-footer">MTIC275 &copy; 2026</div>
+</aside>
+
+<!-- MAIN -->
+<main id="main">
+
+  <!-- DASHBOARD -->
+  <div class="page active" id="page-dashboard">
+    <div class="page-header">
+      <h2>Financial Dashboard</h2>
+      <p>Current fiscal year overview</p>
+    </div>
+    <div class="metrics" id="metrics"></div>
+    <div class="card">
+      <div class="card-title">Recent Transactions</div>
+      <div id="recent-tx"></div>
+    </div>
+  </div>
+
+  <!-- JOURNAL ENTRY -->
+  <div class="page" id="page-journal">
+    <div class="page-header">
+      <h2>Journal Entry <span class="readonly-hint" id="role-hint" style="display:none">Read Only</span></h2>
+      <p>Record income and expense transactions</p>
+    </div>
+    <div class="card" id="tx-card">
+      <div class="card-title" id="tx-card-title">New Transaction</div>
+      <input type="hidden" id="tx-edit-id" value="">
+      <form id="tx-form">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Date</label>
+            <input type="date" id="tx-date" required>
+          </div>
+          <div class="form-group">
+            <label>Type</label>
+            <div class="radio-group" style="padding:9px 0">
+              <label class="radio-label"><input type="radio" name="tx-type" value="income" checked> Income</label>
+              <label class="radio-label"><input type="radio" name="tx-type" value="expense"> Expense</label>
+            </div>
+          </div>
+          <div class="form-group full">
+            <label>Description</label>
+            <input type="text" id="tx-desc" placeholder="e.g. Government grant Q1 2026" required>
+          </div>
+          <div class="form-group">
+            <label>Category</label>
+            <select id="tx-category"></select>
+          </div>
+          <div class="form-group">
+            <label>Account</label>
+            <select id="tx-account"></select>
+          </div>
+          <div class="form-group">
+            <label>Amount (₱)</label>
+            <input type="number" id="tx-amount" min="0.01" step="0.01" placeholder="0.00" required>
+          </div>
+          <div class="form-group">
+            <label>Reference / OR No.</label>
+            <input type="text" id="tx-ref" placeholder="e.g. OR-2026-001">
+          </div>
+          <div class="form-group full">
+            <label>Notes</label>
+            <textarea id="tx-notes" rows="2" placeholder="Optional notes..."></textarea>
+          </div>
+        </div>
+        <div class="actions">
+          <button type="submit" class="btn btn-primary" id="tx-submit-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Post Transaction
+          </button>
+          <button type="button" class="btn btn-secondary" id="tx-cancel-btn" style="display:none" onclick="cancelEditTx()">Cancel Edit</button>
+          <button type="reset" class="btn btn-secondary" id="tx-clear-btn">Clear</button>
+        </div>
+      </form>
+    </div>
+    <div class="card">
+      <div class="card-title">Transaction History</div>
+      <div class="filter-bar no-print">
+        <div class="form-group"><label>From</label><input type="date" id="fl-from"></div>
+        <div class="form-group"><label>To</label><input type="date" id="fl-to"></div>
+        <div class="form-group"><label>Type</label>
+          <select id="fl-type"><option value="">All</option><option>income</option><option>expense</option></select>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="renderLedgerTable()">Filter</button>
+        <button class="btn btn-secondary btn-sm" onclick="clearFilters()">Clear</button>
+        <button class="btn btn-secondary btn-sm no-print" onclick="exportLedgerCSV()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export CSV
+        </button>
+      </div>
+      <div class="table-wrap"><table id="ledger-table"></table></div>
+    </div>
+  </div>
+
+  <!-- GENERAL LEDGER -->
+  <div class="page" id="page-ledger">
+    <div class="page-header">
+      <h2>General Ledger</h2>
+      <p>All posted transactions</p>
+    </div>
+    <div class="card">
+      <div class="actions no-print">
+        <button class="btn btn-secondary btn-sm" onclick="exportLedgerCSV('all')">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export Excel
+        </button>
+        <button class="btn btn-secondary btn-sm" onclick="window.print()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+          Print / PDF
+        </button>
+      </div>
+      <div class="table-wrap"><table id="gl-table"></table></div>
+    </div>
+  </div>
+
+  <!-- P&L -->
+  <div class="page" id="page-pnl">
+    <div class="page-header">
+      <h2>Income Statement (P&amp;L)</h2>
+      <p>Income vs expenses for a selected period</p>
+    </div>
+    <div class="filter-bar no-print">
+      <div class="form-group"><label>From</label><input type="date" id="pnl-from"></div>
+      <div class="form-group"><label>To</label><input type="date" id="pnl-to"></div>
+      <button class="btn btn-primary btn-sm" onclick="renderPNL()">Generate</button>
+      <button class="btn btn-secondary btn-sm" onclick="exportPNLExcel()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export Excel
+      </button>
+      <button class="btn btn-secondary btn-sm" onclick="window.print()">Print / PDF</button>
+    </div>
+    <div class="card" id="pnl-card"></div>
+  </div>
+
+  <!-- BALANCE SHEET -->
+  <div class="page" id="page-balance">
+    <div class="page-header">
+      <h2>Balance Sheet</h2>
+      <p>Assets, liabilities and net assets as of date</p>
+    </div>
+    <div class="filter-bar no-print">
+      <div class="form-group"><label>As of Date</label><input type="date" id="bs-date"></div>
+      <button class="btn btn-primary btn-sm" onclick="renderBalanceSheet()">Generate</button>
+      <button class="btn btn-secondary btn-sm" onclick="exportBSExcel()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export Excel
+      </button>
+      <button class="btn btn-secondary btn-sm" onclick="window.print()">Print / PDF</button>
+    </div>
+    <div class="card" id="bs-card"></div>
+  </div>
+
+  <!-- BANK TRANSACTIONS -->
+  <div class="page" id="page-bank">
+    <div class="page-header">
+      <h2>Bank Transaction Report</h2>
+      <p>Statement view per bank account with running balance</p>
+    </div>
+    <div class="filter-bar no-print">
+      <div class="form-group">
+        <label>Bank Account</label>
+        <select id="bk-account">
+          <option value="Cash in Bank">Cash in Bank (1020)</option>
+          <option value="Cash on Hand">Cash on Hand (1010)</option>
+          <option value="Petty Cash Fund">Petty Cash Fund (1030)</option>
+          <option value="">All Accounts</option>
+        </select>
+      </div>
+      <div class="form-group"><label>From</label><input type="date" id="bk-from"></div>
+      <div class="form-group"><label>To</label><input type="date" id="bk-to"></div>
+      <button class="btn btn-primary btn-sm" onclick="renderBankReport()">Generate</button>
+      <button class="btn btn-secondary btn-sm" onclick="exportBankExcel()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export Excel
+      </button>
+      <button class="btn btn-secondary btn-sm" onclick="window.print()">Print / PDF</button>
+    </div>
+    <div id="bank-report-container"></div>
+  </div>
+
+  <!-- COA REPORT -->
+  <div class="page" id="page-coa-report">
+    <div class="page-header">
+      <h2>Chart of Accounts Report</h2>
+      <p>Full account listing with balances and trial balance verification</p>
+    </div>
+    <div class="filter-bar no-print">
+      <div class="form-group">
+        <label>Account Type</label>
+        <select id="cor-type">
+          <option value="">All Types</option>
+          <option>Asset</option>
+          <option>Liability</option>
+          <option>Equity</option>
+          <option>Income</option>
+          <option>Expense</option>
+        </select>
+      </div>
+      <div class="form-group"><label>As of Date</label><input type="date" id="cor-date"></div>
+      <button class="btn btn-primary btn-sm" onclick="renderCOAReport()">Generate</button>
+      <button class="btn btn-secondary btn-sm" onclick="exportCOAExcel()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export Excel
+      </button>
+      <button class="btn btn-secondary btn-sm" onclick="window.print()">Print / PDF</button>
+    </div>
+    <div id="coa-report-container"></div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="page" id="page-settings">
+    <div class="page-header">
+      <h2>Settings</h2>
+      <p>Configure organisation details, currency, opening balances and reset data</p>
+    </div>
+
+    <!-- General -->
+    <div class="card">
+      <div class="card-title">General Information</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>App / Ledger Name</label>
+          <input type="text" id="st-app-name" placeholder="e.g. NGO Ledger">
+        </div>
+        <div class="form-group">
+          <label>Organisation Name</label>
+          <input type="text" id="st-org-name" placeholder="e.g. My NGO Organisation">
+        </div>
+        <div class="form-group">
+          <label>Currency Symbol</label>
+          <input type="text" id="st-currency" placeholder="e.g. RM, $, ₱, €" maxlength="6" style="max-width:140px">
+        </div>
+        <div class="form-group">
+          <label>Opening Balance Date</label>
+          <input type="date" id="st-ob-date">
+        </div>
+      </div>
+      <div class="actions" style="margin-top:20px">
+        <button class="btn btn-primary" onclick="saveGeneralSettings()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          Save General Settings
+        </button>
+      </div>
+    </div>
+
+    <!-- Opening Balances -->
+    <div class="card">
+      <div class="card-title">Opening Balances</div>
+      <p style="color:var(--muted);font-size:.83rem;margin-bottom:16px">
+        Enter the balances for each account as of the opening balance date. Income and expense accounts start at zero each period.
+      </p>
+      <div id="ob-table-wrap"></div>
+      <div class="actions" style="margin-top:16px">
+        <button class="btn btn-primary" onclick="saveOpeningBalances()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          Save Opening Balances
+        </button>
+        <button class="btn btn-secondary" onclick="clearOpeningBalances()">Clear All to Zero</button>
+      </div>
+    </div>
+
+    <!-- Danger Zone -->
+    <div class="card" style="border-color:#fca5a5">
+      <div class="card-title" style="color:#991b1b">Danger Zone</div>
+      <p style="color:var(--muted);font-size:.83rem;margin-bottom:16px">
+        These actions are irreversible within this session. Use with caution.
+      </p>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">
+        <div>
+          <div style="font-weight:600;font-size:.88rem;margin-bottom:4px">Reset All Transactions</div>
+          <div style="font-size:.78rem;color:var(--muted)">Clears all journal entries. Opening balances are kept.</div>
+        </div>
+        <button class="btn btn-danger" onclick="resetTransactions()" style="flex-shrink:0">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.51"/></svg>
+          Reset Transactions
+        </button>
+      </div>
+      <div style="height:1px;background:var(--border);margin:16px 0"></div>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">
+        <div>
+          <div style="font-weight:600;font-size:.88rem;margin-bottom:4px">Reset Chart of Accounts</div>
+          <div style="font-size:.78rem;color:var(--muted)">Clears all transactions AND resets all opening balances to zero.</div>
+        </div>
+        <button class="btn btn-danger" onclick="resetAll()" style="flex-shrink:0;background:#991b1b;color:#fff">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+          Reset Everything
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- USERS -->
+  <div class="page" id="page-users">
+    <div class="page-header">
+      <h2>User Management</h2>
+      <p>Add, edit and delete system users — admin only</p>
+    </div>
+
+    <!-- Add User -->
+    <div class="card">
+      <div class="card-title" id="user-form-title">Add New User</div>
+      <input type="hidden" id="uf-edit-username">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Username</label>
+          <input type="text" id="uf-username" placeholder="e.g. john.doe" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label>Display Name</label>
+          <input type="text" id="uf-name" placeholder="e.g. John Doe">
+        </div>
+        <div class="form-group">
+          <label>Role</label>
+          <select id="uf-role">
+            <option value="admin">Administrator — full access</option>
+            <option value="accountant">Accountant — full access</option>
+            <option value="viewer">Viewer — read only</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label id="uf-pw-label">Password</label>
+          <input type="password" id="uf-password" placeholder="Enter password" autocomplete="new-password">
+          <span style="font-size:.72rem;color:var(--muted)" id="uf-pw-hint">Leave blank to keep existing password when editing.</span>
+        </div>
+      </div>
+      <div class="actions" style="margin-top:12px">
+        <button class="btn btn-primary" id="uf-submit-btn" onclick="submitUserForm()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add User
+        </button>
+        <button class="btn btn-secondary" id="uf-cancel-btn" style="display:none" onclick="cancelUserEdit()">Cancel</button>
+      </div>
+    </div>
+
+    <!-- User List -->
+    <div class="card">
+      <div class="card-title">Current Users</div>
+      <div id="users-list"></div>
+    </div>
+  </div>
+
+  <!-- CHART OF ACCOUNTS -->
+  <div class="page" id="page-coa">
+    <div class="page-header">
+      <h2>Chart of Accounts</h2>
+      <p>Add, manage and delete accounts</p>
+    </div>
+    <!-- Add Account Form -->
+    <div class="card">
+      <div class="card-title">Add New Account</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Account Code</label>
+          <input type="text" id="coa-code" placeholder="e.g. 4080" maxlength="10">
+        </div>
+        <div class="form-group">
+          <label>Account Name</label>
+          <input type="text" id="coa-name" placeholder="e.g. Event Income">
+        </div>
+        <div class="form-group">
+          <label>Account Type</label>
+          <select id="coa-type" onchange="updateCoaSub()">
+            <option>Asset</option>
+            <option>Liability</option>
+            <option>Equity</option>
+            <option>Income</option>
+            <option>Expense</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Sub-Category</label>
+          <select id="coa-sub"></select>
+        </div>
+      </div>
+      <div class="actions" style="margin-top:12px">
+        <button class="btn btn-primary" onclick="addAccount()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add Account
+        </button>
+      </div>
+    </div>
+    <!-- Account List -->
+    <div class="card">
+      <div id="coa-list"></div>
+    </div>
+  </div>
+
+</main>
+
+<div id="toast"></div>
+
+<!-- DRILL-DOWN MODAL -->
+<div id="drill-overlay" onclick="closeDrill(event)">
+  <div id="drill-modal">
+    <div id="drill-header">
+      <div id="drill-title">
+        <h3 id="drill-title-name"></h3>
+        <p id="drill-title-sub"></p>
+      </div>
+      <button id="drill-close" onclick="closeDrillModal()">&times;</button>
+    </div>
+    <div id="drill-summary">
+      <div class="drill-stat">
+        <div class="drill-stat-label">Transactions</div>
+        <div class="drill-stat-value" id="drill-count">—</div>
+      </div>
+      <div class="drill-stat">
+        <div class="drill-stat-label">Total Debits (Out)</div>
+        <div class="drill-stat-value neg" id="drill-debit">—</div>
+      </div>
+      <div class="drill-stat">
+        <div class="drill-stat-label">Total Credits (In)</div>
+        <div class="drill-stat-value pos" id="drill-credit">—</div>
+      </div>
+    </div>
+    <div id="drill-body">
+      <div class="table-wrap">
+        <table id="drill-table"></table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+//  DATA LAYER
+// ══════════════════════════════════════════
+// ── mutable settings (editable via Settings page) ──
+let settings = {
+  appName:      "NGO Ledger",
+  orgName:      "My NGO Organisation",
+  currency:     "RM",
+  openingDate:  "2026-01-01",
+  openingBalances: {
+    "Cash on Hand":                  0,
+    "Cash in Bank":                  0,
+    "Petty Cash Fund":               0,
+    "Accounts Receivable":           0,
+    "Grants Receivable":             0,
+    "Office Equipment":              0,
+    "Furniture & Fixtures":          0,
+    "Vehicles":                      0,
+    "Accounts Payable":              0,
+    "Accrued Expenses":              0,
+    "SSS/PhilHealth/HDMF Payable":   0,
+    "Withholding Tax Payable":       0,
+    "Loans Payable":                 0,
+    "Unrestricted Net Assets":       0,
+    "Restricted Net Assets":         0,
+    "Retained Surplus":              0,
+  }
+};
+
+let ACCOUNTS = [
+  // ASSETS
+  {code:"1010",name:"Cash on Hand",           type:"Asset",    sub:"Current Assets"},
+  {code:"1020",name:"Cash in Bank",           type:"Asset",    sub:"Current Assets"},
+  {code:"1030",name:"Petty Cash Fund",        type:"Asset",    sub:"Current Assets"},
+  {code:"1040",name:"Accounts Receivable",    type:"Asset",    sub:"Current Assets"},
+  {code:"1050",name:"Grants Receivable",      type:"Asset",    sub:"Current Assets"},
+  {code:"1110",name:"Office Equipment",       type:"Asset",    sub:"Non-Current Assets"},
+  {code:"1120",name:"Furniture & Fixtures",   type:"Asset",    sub:"Non-Current Assets"},
+  {code:"1130",name:"Vehicles",               type:"Asset",    sub:"Non-Current Assets"},
+  // LIABILITIES
+  {code:"2010",name:"Accounts Payable",       type:"Liability",sub:"Current Liabilities"},
+  {code:"2020",name:"Accrued Expenses",       type:"Liability",sub:"Current Liabilities"},
+  {code:"2030",name:"SSS/PhilHealth/HDMF Payable",type:"Liability",sub:"Current Liabilities"},
+  {code:"2040",name:"Withholding Tax Payable",type:"Liability",sub:"Current Liabilities"},
+  {code:"2110",name:"Loans Payable",          type:"Liability",sub:"Non-Current Liabilities"},
+  // EQUITY / NET ASSETS
+  {code:"3010",name:"Unrestricted Net Assets",type:"Equity",   sub:"Net Assets"},
+  {code:"3020",name:"Restricted Net Assets",  type:"Equity",   sub:"Net Assets"},
+  {code:"3030",name:"Retained Surplus",       type:"Equity",   sub:"Net Assets"},
+  // INCOME
+  {code:"4010",name:"Government Grants",      type:"Income",   sub:"Grants & Subsidies"},
+  {code:"4020",name:"Foundation Grants",      type:"Income",   sub:"Grants & Subsidies"},
+  {code:"4030",name:"Donations – Cash",       type:"Income",   sub:"Donations"},
+  {code:"4040",name:"Donations – In-Kind",    type:"Income",   sub:"Donations"},
+  {code:"4050",name:"Membership Fees",        type:"Income",   sub:"Other Income"},
+  {code:"4060",name:"Project Income",         type:"Income",   sub:"Other Income"},
+  {code:"4070",name:"Interest Income",        type:"Income",   sub:"Other Income"},
+  // EXPENSES
+  {code:"5010",name:"Salaries & Wages",       type:"Expense",  sub:"Personnel Costs"},
+  {code:"5020",name:"13th Month Pay",         type:"Expense",  sub:"Personnel Costs"},
+  {code:"5030",name:"SSS/PhilHealth/HDMF",    type:"Expense",  sub:"Personnel Costs"},
+  {code:"5040",name:"Staff Training",         type:"Expense",  sub:"Personnel Costs"},
+  {code:"5110",name:"Program Supplies",       type:"Expense",  sub:"Program Expenses"},
+  {code:"5120",name:"Community Activities",   type:"Expense",  sub:"Program Expenses"},
+  {code:"5130",name:"Beneficiary Support",    type:"Expense",  sub:"Program Expenses"},
+  {code:"5140",name:"Field Operations",       type:"Expense",  sub:"Program Expenses"},
+  {code:"5210",name:"Office Rent",            type:"Expense",  sub:"Admin & Overhead"},
+  {code:"5220",name:"Utilities",              type:"Expense",  sub:"Admin & Overhead"},
+  {code:"5230",name:"Office Supplies",        type:"Expense",  sub:"Admin & Overhead"},
+  {code:"5240",name:"Communication",          type:"Expense",  sub:"Admin & Overhead"},
+  {code:"5250",name:"Transportation",         type:"Expense",  sub:"Admin & Overhead"},
+  {code:"5260",name:"Audit & Legal Fees",     type:"Expense",  sub:"Admin & Overhead"},
+  {code:"5270",name:"Depreciation",           type:"Expense",  sub:"Admin & Overhead"},
+];
+
+// ══════════════════════════════════════════
+//  SUPABASE CLIENT
+// ══════════════════════════════════════════
+const SUPABASE_URL = 'https://giedlruyostsdhlykzog.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdpZWRscnV5b3N0c2RobHlrem9nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxNDMwMjksImV4cCI6MjA5MjcxOTAyOX0.DmJ2gKQ-Xt-IVnJoLQnpMzKQtrmNJ2kL3i18yrajC-4';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+function showLoading(show, msg='Loading…'){
+  const el = document.getElementById('loading-overlay');
+  if(show){ document.getElementById('loading-msg').textContent = msg; el.classList.remove('hidden'); }
+  else     { el.classList.add('hidden'); }
+}
+
+async function loadAllData(){
+  showLoading(true, 'Connecting to database…');
+  try {
+    // Settings
+    showLoading(true, 'Loading settings…');
+    const { data: s, error: sErr } = await sb.from('settings').select('*').eq('id',1).single();
+    if(sErr) throw sErr;
+    settings.appName         = s.app_name;
+    settings.orgName         = s.org_name;
+    settings.currency        = s.currency;
+    settings.openingDate     = s.opening_date;
+    settings.openingBalances = s.opening_balances || {};
+
+    // Accounts
+    showLoading(true, 'Loading chart of accounts…');
+    const { data: accs, error: aErr } = await sb.from('accounts').select('*').order('sort_order');
+    if(aErr) throw aErr;
+    ACCOUNTS.length = 0;
+    accs.forEach(a => ACCOUNTS.push({ code:a.code, name:a.name, type:a.type, sub:a.sub }));
+
+    // Users
+    showLoading(true, 'Loading users…');
+    const { data: usrs, error: uErr } = await sb.from('users').select('*').order('created_at');
+    if(uErr) throw uErr;
+    USERS.length = 0;
+    usrs.forEach(u => USERS.push({ username:u.username, hash:u.password_hash, name:u.name, role:u.role, roleLabel:ROLE_LABELS[u.role]||u.role }));
+
+    // Transactions
+    showLoading(true, 'Loading transactions…');
+    const { data: txs, error: tErr } = await sb.from('transactions').select('*').order('date').order('created_at');
+    if(tErr) throw tErr;
+    transactions.length = 0;
+    txs.forEach(t => transactions.push({ id:t.id, date:t.date, type:t.type, desc:t.description, category:t.category, account:t.account, amount:parseFloat(t.amount), ref:t.ref||'', notes:t.notes||'' }));
+
+  } catch(err) {
+    console.error('Supabase load error:', err);
+    showLoading(false);
+    alert('Could not connect to the database. Check your internet connection and try again.\n\n' + (err.message||err));
+    return false;
+  }
+  showLoading(false);
+  return true;
+}
+
+// ══════════════════════════════════════════
+//  DERIVED CATEGORIES
+// Derived dynamically from ACCOUNTS so new accounts appear automatically
+const getIncomeCategories  = () => ACCOUNTS.filter(a=>a.type==='Income').map(a=>a.name);
+const getExpenseCategories = () => ACCOUNTS.filter(a=>a.type==='Expense').map(a=>a.name);
+
+let transactions = []; // IDs are now UUIDs from Supabase
+
+// ══════════════════════════════════════════
+//  UTILITIES
+// ══════════════════════════════════════════
+const fmt = n => settings.currency + Number(n).toLocaleString('en-MY',{minimumFractionDigits:2,maximumFractionDigits:2});
+const today = () => new Date().toISOString().split('T')[0];
+const yearStart = () => new Date().getFullYear() + '-01-01';
+
+function toast(msg, dur=2800){
+  const el = document.getElementById('toast');
+  el.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> ${msg}`;
+  el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'), dur);
+}
+
+function getFiltered(from, to, type){
+  return transactions.filter(t => {
+    if(from && t.date < from) return false;
+    if(to   && t.date > to)   return false;
+    if(type && t.type !== type) return false;
+    return true;
+  }).sort((a,b)=>b.date.localeCompare(a.date));
+}
+
+function sumByCategory(txs, type){
+  const map = {};
+  txs.filter(t=>t.type===type).forEach(t=>{
+    map[t.category] = (map[t.category]||0) + t.amount;
+  });
+  return map;
+}
+
+function computeCashBalances(asOf){
+  const cashAccounts = ["Cash on Hand","Cash in Bank","Petty Cash Fund"];
+  const ob = settings.openingBalances;
+  const map = {
+    "Cash on Hand":   ob["Cash on Hand"]   || 0,
+    "Cash in Bank":   ob["Cash in Bank"]   || 0,
+    "Petty Cash Fund":ob["Petty Cash Fund"]|| 0,
+  };
+  transactions.filter(t=> (!asOf || t.date <= asOf) && cashAccounts.includes(t.account))
+    .forEach(t=>{ map[t.account] += t.type==='income' ? t.amount : -t.amount; });
+  return map;
+}
+
+// ══════════════════════════════════════════
+//  NAVIGATION
+// ══════════════════════════════════════════
+document.querySelectorAll('.nav-item').forEach(item=>{
+  item.addEventListener('click',()=>{
+    document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    item.classList.add('active');
+    const page = item.dataset.page;
+    document.getElementById('page-'+page).classList.add('active');
+    if(page==='dashboard') renderDashboard();
+    if(page==='ledger')    renderGL();
+    if(page==='journal')   renderLedgerTable();
+    if(page==='pnl')       renderPNL();
+    if(page==='balance')   renderBalanceSheet();
+    if(page==='coa')       { updateCoaSub(); renderCOA(); }
+    if(page==='bank')      renderBankReport();
+    if(page==='coa-report') renderCOAReport();
+    if(page==='settings')   renderSettings();
+    if(page==='users')      renderUsers();
+  });
+});
+
+// ══════════════════════════════════════════
+//  DASHBOARD
+// ══════════════════════════════════════════
+function renderDashboard(){
+  const txs = transactions.filter(t=> t.date >= yearStart());
+  const totalIncome  = txs.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+  const totalExpense = txs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  const net = totalIncome - totalExpense;
+  const cash = computeCashBalances();
+  const totalCash = cash["Cash on Hand"] + cash["Cash in Bank"] + cash["Petty Cash Fund"];
+
+  document.getElementById('metrics').innerHTML = `
+    <div class="metric">
+      <div class="metric-label">Total Income (YTD)</div>
+      <div class="metric-value income">${fmt(totalIncome)}</div>
+      <div class="metric-sub">Year to date</div>
+      <span class="metric-badge badge-green">+${txs.filter(t=>t.type==='income').length} entries</span>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Total Expenses (YTD)</div>
+      <div class="metric-value expense">${fmt(totalExpense)}</div>
+      <div class="metric-sub">Year to date</div>
+      <span class="metric-badge badge-red">${txs.filter(t=>t.type==='expense').length} entries</span>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Net Surplus / (Deficit)</div>
+      <div class="metric-value net ${net>=0?'pos':'neg'}">${fmt(net)}</div>
+      <div class="metric-sub">Income minus expenses</div>
+      <span class="metric-badge ${net>=0?'badge-green':'badge-red'}">${net>=0?'Surplus':'Deficit'}</span>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Available Cash Funds</div>
+      <div class="metric-value">${fmt(totalCash)}</div>
+      <div class="metric-sub">All cash accounts</div>
+      <span class="metric-badge badge-blue">3 accounts</span>
+    </div>
+  `;
+
+  const recent = [...transactions].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,8);
+  document.getElementById('recent-tx').innerHTML = `
+    <div class="tx-row" style="background:var(--teal-50);font-weight:600;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">
+      <div>Date</div><div>Description</div><div>Category</div><div>Type</div><div style="text-align:right">Amount</div>
+    </div>
+    ${recent.map(t=>`
+    <div class="tx-row">
+      <div class="tx-date">${t.date}</div>
+      <div>${t.desc}</div>
+      <div style="color:var(--muted);font-size:.78rem">${t.category}</div>
+      <div><span class="tx-type type-${t.type}">${t.type}</span></div>
+      <div style="text-align:right;font-variant-numeric:tabular-nums;font-weight:600;color:${t.type==='income'?'#059669':'var(--red)'}">${fmt(t.amount)}</div>
+    </div>`).join('')}
+  `;
+}
+
+// ══════════════════════════════════════════
+//  JOURNAL FORM
+// ══════════════════════════════════════════
+function populateSelects(){
+  const typeRadios = document.querySelectorAll('input[name="tx-type"]');
+  const catSel = document.getElementById('tx-category');
+  const accSel = document.getElementById('tx-account');
+
+  function updateSelects(){
+    const type = document.querySelector('input[name="tx-type"]:checked').value;
+    const cats = type==='income' ? getIncomeCategories() : getExpenseCategories();
+    catSel.innerHTML = cats.map(c=>`<option>${c}</option>`).join('');
+    const accs = ACCOUNTS.filter(a=>type==='income' ? ['Asset'].includes(a.type) : ['Asset'].includes(a.type));
+    accSel.innerHTML = ACCOUNTS.filter(a=>a.type==='Asset').map(a=>`<option>${a.name}</option>`).join('');
+  }
+
+  typeRadios.forEach(r=>r.addEventListener('change', updateSelects));
+  updateSelects();
+}
+
+document.getElementById('tx-form').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const editId = document.getElementById('tx-edit-id').value;
+  const type   = document.querySelector('input[name="tx-type"]:checked').value;
+  const data   = {
+    date:     document.getElementById('tx-date').value,
+    type,
+    desc:     document.getElementById('tx-desc').value,
+    category: document.getElementById('tx-category').value,
+    account:  document.getElementById('tx-account').value,
+    amount:   parseFloat(document.getElementById('tx-amount').value),
+    ref:      document.getElementById('tx-ref').value,
+    notes:    document.getElementById('tx-notes').value,
+  };
+  if(editId){
+    const { error } = await sb.from('transactions').update({
+      date:data.date, type:data.type, description:data.desc,
+      category:data.category, account:data.account, amount:data.amount,
+      ref:data.ref, notes:data.notes
+    }).eq('id', editId);
+    if(error){ toast('Save failed: '+error.message); return; }
+    const idx = transactions.findIndex(t=>t.id===editId);
+    if(idx>-1) transactions[idx] = {...transactions[idx], ...data};
+    toast('Transaction updated successfully!');
+    cancelEditTx();
+  } else {
+    const { data: row, error } = await sb.from('transactions').insert({
+      date:data.date, type:data.type, description:data.desc,
+      category:data.category, account:data.account, amount:data.amount,
+      ref:data.ref, notes:data.notes
+    }).select().single();
+    if(error){ toast('Save failed: '+error.message); return; }
+    transactions.push({...data, id:row.id});
+    e.target.reset();
+    document.getElementById('tx-date').value = today();
+    populateSelects();
+    toast('Transaction posted successfully!');
+  }
+  renderLedgerTable();
+});
+
+function editTx(id){
+  const t = transactions.find(t=>t.id===id);
+  if(!t) return;
+  document.getElementById('tx-edit-id').value = id;
+  document.getElementById('tx-date').value    = t.date;
+  document.querySelector(`input[name="tx-type"][value="${t.type}"]`).checked = true;
+  populateSelects();
+  document.getElementById('tx-desc').value     = t.desc;
+  document.getElementById('tx-category').value = t.category;
+  document.getElementById('tx-account').value  = t.account;
+  document.getElementById('tx-amount').value   = t.amount;
+  document.getElementById('tx-ref').value      = t.ref||'';
+  document.getElementById('tx-notes').value    = t.notes||'';
+  document.getElementById('tx-card-title').textContent  = 'Edit Transaction';
+  document.getElementById('tx-card').style.border       = '2px solid var(--teal-500)';
+  document.getElementById('tx-submit-btn').innerHTML    =
+    `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Update Transaction`;
+  document.getElementById('tx-cancel-btn').style.display = '';
+  document.getElementById('tx-clear-btn').style.display  = 'none';
+  document.getElementById('tx-card').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function cancelEditTx(){
+  document.getElementById('tx-edit-id').value           = '';
+  document.getElementById('tx-form').reset();
+  document.getElementById('tx-date').value               = today();
+  document.getElementById('tx-card-title').textContent  = 'New Transaction';
+  document.getElementById('tx-card').style.border       = '';
+  document.getElementById('tx-submit-btn').innerHTML    =
+    `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Post Transaction`;
+  document.getElementById('tx-cancel-btn').style.display = 'none';
+  document.getElementById('tx-clear-btn').style.display  = '';
+  populateSelects();
+}
+
+function renderLedgerTable(){
+  const from = document.getElementById('fl-from').value;
+  const to   = document.getElementById('fl-to').value;
+  const type = document.getElementById('fl-type').value;
+  const txs  = getFiltered(from, to, type);
+  const totalInc = txs.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+  const totalExp = txs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+
+  document.getElementById('ledger-table').innerHTML = `
+    <thead><tr>
+      <th>Date</th><th>Ref</th><th>Description</th><th>Category</th><th>Account</th><th>Type</th>
+      <th class="num">Amount</th><th class="no-print">Action</th>
+    </tr></thead>
+    <tbody>
+    ${txs.map(t=>`<tr>
+      <td>${t.date}</td>
+      <td style="font-size:.75rem;color:var(--muted)">${t.ref||'—'}</td>
+      <td>${t.desc}</td>
+      <td style="font-size:.78rem">${t.category}</td>
+      <td style="font-size:.78rem">${t.account}</td>
+      <td><span class="tx-type type-${t.type}">${t.type}</span></td>
+      <td class="num ${t.type==='income'?'pos':'neg'}">${fmt(t.amount)}</td>
+      <td class="no-print" style="display:flex;gap:6px">
+        <button class="btn btn-secondary btn-sm edit-tx-btn" onclick="editTx('${t.id}')">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          Edit
+        </button>
+        <button class="btn btn-danger btn-sm" onclick="deleteTx('${t.id}')">Delete</button>
+      </td>
+    </tr>`).join('')}
+    </tbody>
+    <tfoot><tr>
+      <td colspan="6" style="text-align:right;font-weight:600">Totals</td>
+      <td class="num pos">${fmt(totalInc)}<br><span style="color:var(--red)">${fmt(totalExp)}</span></td>
+      <td class="no-print"></td>
+    </tr></tfoot>
+  `;
+}
+
+async function deleteTx(id){
+  if(!confirm('Delete this transaction?')) return;
+  const { error } = await sb.from('transactions').delete().eq('id', id);
+  if(error){ toast('Delete failed: '+error.message); return; }
+  transactions = transactions.filter(t=>t.id!==id);
+  renderLedgerTable();
+  toast('Transaction deleted.');
+}
+
+// Re-apply role restrictions after every table render
+const _origRenderLedgerTable = renderLedgerTable;
+renderLedgerTable = function(){
+  _origRenderLedgerTable();
+  if(currentUser) applyRoleRestrictions();
+};
+
+function clearFilters(){
+  document.getElementById('fl-from').value='';
+  document.getElementById('fl-to').value='';
+  document.getElementById('fl-type').value='';
+  renderLedgerTable();
+}
+
+// ══════════════════════════════════════════
+//  GENERAL LEDGER
+// ══════════════════════════════════════════
+function renderGL(){
+  const txs = [...transactions].sort((a,b)=>a.date.localeCompare(b.date));
+  let runInc=0, runExp=0;
+  document.getElementById('gl-table').innerHTML = `
+    <thead><tr>
+      <th>#</th><th>Date</th><th>Ref</th><th>Description</th><th>Category</th><th>Account</th>
+      <th class="num">Debit (Exp)</th><th class="num">Credit (Inc)</th><th class="num">Balance</th>
+    </tr></thead>
+    <tbody>
+    ${txs.map((t,i)=>{
+      if(t.type==='income') runInc+=t.amount; else runExp+=t.amount;
+      const bal = runInc - runExp;
+      return `<tr>
+        <td style="color:var(--muted);font-size:.75rem">${i+1}</td>
+        <td>${t.date}</td>
+        <td style="font-size:.75rem;color:var(--muted)">${t.ref||'—'}</td>
+        <td>${t.desc}</td>
+        <td style="font-size:.78rem">${t.category}</td>
+        <td style="font-size:.78rem">${t.account}</td>
+        <td class="num ${t.type==='expense'?'neg':''}">${t.type==='expense'?fmt(t.amount):'—'}</td>
+        <td class="num ${t.type==='income'?'pos':''}">${t.type==='income'?fmt(t.amount):'—'}</td>
+        <td class="num ${bal>=0?'pos':'neg'}">${fmt(bal)}</td>
+      </tr>`;
+    }).join('')}
+    </tbody>
+  `;
+}
+
+// ══════════════════════════════════════════
+//  P&L / INCOME STATEMENT
+// ══════════════════════════════════════════
+function renderPNL(){
+  const from = document.getElementById('pnl-from').value || yearStart();
+  const to   = document.getElementById('pnl-to').value   || today();
+  const txs  = getFiltered(from, to, '');
+
+  const incByCat = sumByCategory(txs,'income');
+  const expByCat = sumByCategory(txs,'expense');
+  const totalInc = Object.values(incByCat).reduce((s,v)=>s+v,0);
+  const totalExp = Object.values(expByCat).reduce((s,v)=>s+v,0);
+  const net = totalInc - totalExp;
+
+  // Group income by subtype
+  const incGroups = {"Grants & Subsidies":[],"Donations":[],"Other Income":[]};
+  ACCOUNTS.filter(a=>a.type==='Income').forEach(a=>{
+    if(incByCat[a.name]) incGroups[a.sub].push({name:a.name, amount:incByCat[a.name]});
+  });
+
+  const expGroups = {"Personnel Costs":[],"Program Expenses":[],"Admin & Overhead":[]};
+  ACCOUNTS.filter(a=>a.type==='Expense').forEach(a=>{
+    if(expByCat[a.name]) expGroups[a.sub].push({name:a.name, amount:expByCat[a.name]});
+  });
+
+  let html = `
+    <div class="report-meta">
+      <h3>${settings.orgName}</h3>
+      <p>Income Statement (Profit &amp; Loss)</p>
+      <p>For the period: <strong>${from}</strong> to <strong>${to}</strong></p>
+    </div>
+    <div class="table-wrap"><table>
+    <thead><tr><th>Account</th><th class="num">Amount (${CURRENCY})</th><th class="num">Total (${CURRENCY})</th></tr></thead>
+    <tbody>
+    <tr class="section-row"><td colspan="3">INCOME</td></tr>
+  `;
+
+  let incSubtotals = {};
+  Object.entries(incGroups).forEach(([grp,items])=>{
+    if(!items.length) return;
+    const sub = items.reduce((s,i)=>s+i.amount,0);
+    incSubtotals[grp]=sub;
+    html+=`<tr class="subsection-row"><td colspan="3">${grp}</td></tr>`;
+    items.forEach(i=>{ html+=`<tr><td style="padding-left:32px">${i.name}</td><td class="num">${fmt(i.amount)}</td><td></td></tr>`; });
+    html+=`<tr class="subtotal-row"><td style="padding-left:32px;font-style:italic">Subtotal – ${grp}</td><td></td><td class="num pos">${fmt(sub)}</td></tr>`;
+  });
+
+  html+=`<tr class="grand-total-row"><td>TOTAL INCOME</td><td></td><td class="num pos">${fmt(totalInc)}</td></tr>`;
+  html+=`<tr class="section-row"><td colspan="3">EXPENSES</td></tr>`;
+
+  Object.entries(expGroups).forEach(([grp,items])=>{
+    if(!items.length) return;
+    const sub = items.reduce((s,i)=>s+i.amount,0);
+    html+=`<tr class="subsection-row"><td colspan="3">${grp}</td></tr>`;
+    items.forEach(i=>{ html+=`<tr><td style="padding-left:32px">${i.name}</td><td class="num">${fmt(i.amount)}</td><td></td></tr>`; });
+    html+=`<tr class="subtotal-row"><td style="padding-left:32px;font-style:italic">Subtotal – ${grp}</td><td></td><td class="num neg">${fmt(sub)}</td></tr>`;
+  });
+
+  html+=`<tr class="grand-total-row"><td>TOTAL EXPENSES</td><td></td><td class="num neg">${fmt(totalExp)}</td></tr>`;
+  html+=`<tr style="background:${net>=0?'#dcfce7':'#fee2e2'}">
+    <td style="font-weight:700;font-size:1rem;padding:14px 12px">NET ${net>=0?'SURPLUS':'DEFICIT'}</td>
+    <td></td>
+    <td class="num ${net>=0?'pos':'neg'}" style="font-size:1.1rem;font-weight:700">${fmt(Math.abs(net))}</td>
+  </tr>`;
+  html+=`</tbody></table></div>`;
+
+  document.getElementById('pnl-card').innerHTML = html;
+}
+
+// ══════════════════════════════════════════
+//  BALANCE SHEET
+// ══════════════════════════════════════════
+function renderBalanceSheet(){
+  const asOf = document.getElementById('bs-date').value || today();
+  const cash = computeCashBalances(asOf);
+
+  // Build balances map
+  const bal = {...settings.openingBalances};
+  bal["Cash on Hand"]  = cash["Cash on Hand"];
+  bal["Cash in Bank"]  = cash["Cash in Bank"];
+  bal["Petty Cash Fund"] = cash["Petty Cash Fund"];
+
+  // Compute retained earnings from all txs up to asOf
+  const txs = transactions.filter(t=>t.date<=asOf);
+  const inc = txs.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+  const exp = txs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  const netSurplus = inc - exp;
+  // Add net surplus to retained surplus
+  const retainedTotal = settings.openingBalances["Retained Surplus"] + netSurplus;
+
+  function renderSection(type){
+    const accounts = ACCOUNTS.filter(a=>a.type===type);
+    const subs = [...new Set(accounts.map(a=>a.sub))];
+    let total = 0, html='';
+    subs.forEach(sub=>{
+      const items = accounts.filter(a=>a.sub===sub);
+      html+=`<tr class="subsection-row"><td colspan="2">${sub}</td></tr>`;
+      let subTotal=0;
+      items.forEach(a=>{
+        let b = type==='Equity' && a.name==='Retained Surplus' ? retainedTotal : (bal[a.name]||0);
+        subTotal+=b;
+        html+=`<tr><td style="padding-left:32px">${a.name}</td><td class="num">${fmt(b)}</td></tr>`;
+      });
+      total+=subTotal;
+      html+=`<tr class="subtotal-row"><td style="padding-left:32px;font-style:italic">Subtotal – ${sub}</td><td class="num">${fmt(subTotal)}</td></tr>`;
+    });
+    return {html, total};
+  }
+
+  const assets = renderSection('Asset');
+  const liab   = renderSection('Liability');
+  const equity = renderSection('Equity');
+  const totalLA = liab.total + equity.total;
+
+  let html = `
+    <div class="report-meta">
+      <h3>${settings.orgName}</h3>
+      <p>Balance Sheet (Statement of Financial Position)</p>
+      <p>As of: <strong>${asOf}</strong></p>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:4px">
+      <div>
+        <div class="table-wrap"><table>
+        <thead><tr><th colspan="2">ASSETS</th></tr></thead>
+        <tbody>
+        <tr class="section-row"><td colspan="2">ASSETS</td></tr>
+        ${assets.html}
+        <tr class="grand-total-row"><td>TOTAL ASSETS</td><td class="num pos">${fmt(assets.total)}</td></tr>
+        </tbody></table></div>
+      </div>
+      <div>
+        <div class="table-wrap"><table>
+        <thead><tr><th colspan="2">LIABILITIES &amp; NET ASSETS</th></tr></thead>
+        <tbody>
+        <tr class="section-row"><td colspan="2">LIABILITIES</td></tr>
+        ${liab.html}
+        <tr class="grand-total-row"><td>TOTAL LIABILITIES</td><td class="num neg">${fmt(liab.total)}</td></tr>
+        <tr class="section-row"><td colspan="2">NET ASSETS (EQUITY)</td></tr>
+        ${equity.html}
+        <tr class="grand-total-row"><td>TOTAL NET ASSETS</td><td class="num pos">${fmt(equity.total)}</td></tr>
+        <tr style="background:${Math.abs(assets.total-totalLA)<1?'#dcfce7':'#fee2e2'}">
+          <td style="font-weight:700;padding:14px 12px">TOTAL LIABILITIES + NET ASSETS</td>
+          <td class="num pos" style="font-weight:700;font-size:1rem">${fmt(totalLA)}</td>
+        </tr>
+        </tbody></table></div>
+        ${Math.abs(assets.total-totalLA)<1
+          ? `<div style="margin-top:8px;padding:8px 12px;background:#dcfce7;border-radius:8px;color:#166534;font-size:.78rem;font-weight:600">✓ Balance sheet is in balance</div>`
+          : `<div style="margin-top:8px;padding:8px 12px;background:#fee2e2;border-radius:8px;color:#991b1b;font-size:.78rem">⚠ Out of balance by ${fmt(Math.abs(assets.total-totalLA))}</div>`
+        }
+      </div>
+    </div>
+  `;
+
+  document.getElementById('bs-card').innerHTML = html;
+}
+
+// ══════════════════════════════════════════
+//  CHART OF ACCOUNTS
+// ══════════════════════════════════════════
+const COA_SUBS = {
+  Asset:     ['Current Assets','Non-Current Assets'],
+  Liability: ['Current Liabilities','Non-Current Liabilities'],
+  Equity:    ['Net Assets'],
+  Income:    ['Grants & Subsidies','Donations','Other Income'],
+  Expense:   ['Personnel Costs','Program Expenses','Admin & Overhead'],
+};
+
+function updateCoaSub(){
+  const type = document.getElementById('coa-type').value;
+  const sel  = document.getElementById('coa-sub');
+  sel.innerHTML = (COA_SUBS[type]||[]).map(s=>`<option>${s}</option>`).join('');
+}
+
+async function addAccount(){
+  const code = document.getElementById('coa-code').value.trim();
+  const name = document.getElementById('coa-name').value.trim();
+  const type = document.getElementById('coa-type').value;
+  const sub  = document.getElementById('coa-sub').value;
+  if(!code || !name){ toast('Please enter a code and name.'); return; }
+  if(ACCOUNTS.find(a=>a.code===code)){ toast('Account code already exists.'); return; }
+  if(ACCOUNTS.find(a=>a.name===name)){ toast('Account name already exists.'); return; }
+  const sortOrder = ACCOUNTS.length * 10 + 10;
+  const { error } = await sb.from('accounts').insert({ code, name, type, sub, sort_order:sortOrder });
+  if(error){ toast('Save failed: '+error.message); return; }
+  ACCOUNTS.push({code, name, type, sub});
+  if(type==='Asset'||type==='Liability'||type==='Equity'){
+    settings.openingBalances[name] = 0;
+    await syncSettings();
+  }
+  document.getElementById('coa-code').value = '';
+  document.getElementById('coa-name').value = '';
+  renderCOA();
+  populateSelects();
+  toast(`Account "${name}" added.`);
+}
+
+async function deleteAccount(code){
+  const acc = ACCOUNTS.find(a=>a.code===code);
+  if(!acc) return;
+  const inUse = transactions.some(t=>t.category===acc.name || t.account===acc.name);
+  if(inUse){ toast('Cannot delete: account has transactions.'); return; }
+  if(!confirm(`Delete account "${acc.code} – ${acc.name}"?`)) return;
+  const { error } = await sb.from('accounts').delete().eq('code', code);
+  if(error){ toast('Delete failed: '+error.message); return; }
+  ACCOUNTS = ACCOUNTS.filter(a=>a.code!==code);
+  delete settings.openingBalances[acc.name];
+  await syncSettings();
+  renderCOA();
+  populateSelects();
+  toast(`Account "${acc.name}" deleted.`);
+}
+
+function renderCOA(){
+  const types = ['Asset','Liability','Equity','Income','Expense'];
+  const cash  = computeCashBalances();
+
+  let html = '';
+  types.forEach(type=>{
+    const accounts = ACCOUNTS.filter(a=>a.type===type);
+    const subs = [...new Set(accounts.map(a=>a.sub))];
+    html += `<div class="coa-type">${type.toUpperCase()}S &nbsp;<span style="font-weight:400;font-size:.75rem;opacity:.6">${accounts.length} account${accounts.length!==1?'s':''}</span></div>`;
+    subs.forEach(sub=>{
+      html += `<div class="coa-subtype">${sub}</div>`;
+      accounts.filter(a=>a.sub===sub).forEach(a=>{
+        let b = 0;
+        if(['Cash on Hand','Cash in Bank','Petty Cash Fund'].includes(a.name))
+          b = cash[a.name]||0;
+        else if(settings.openingBalances[a.name]!==undefined)
+          b = settings.openingBalances[a.name];
+        html += `<div class="coa-row" style="grid-template-columns:80px 1fr 160px 80px 110px 70px">
+          <div class="coa-code">${a.code}</div>
+          <div>${a.name}</div>
+          <div style="color:var(--muted);font-size:.78rem">${a.sub}</div>
+          <div style="color:var(--muted);font-size:.78rem">${a.type}</div>
+          <div class="coa-balance ${b>0?'pos':b<0?'neg':''}">${b!==0?fmt(Math.abs(b)):'—'}</div>
+          <div>
+            <button class="btn btn-danger btn-sm" onclick="deleteAccount('${a.code}')" title="Delete account"
+              style="padding:4px 8px;font-size:.7rem">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M9 6V4h6v2"/></svg>
+            </button>
+          </div>
+        </div>`;
+      });
+    });
+  });
+
+  document.getElementById('coa-list').innerHTML = `
+    <div class="coa-row" style="background:var(--teal-50);font-weight:600;font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);grid-template-columns:80px 1fr 160px 80px 110px 70px">
+      <div>Code</div><div>Account Name</div><div>Sub-type</div><div>Type</div><div style="text-align:right">Balance</div><div></div>
+    </div>
+    ${html}
+  `;
+}
+
+// Init sub-category dropdown on COA page load
+document.addEventListener('DOMContentLoaded', ()=>{ updateCoaSub(); });
+
+// ══════════════════════════════════════════
+//  EXPORTS
+// ══════════════════════════════════════════
+function exportLedgerCSV(mode){
+  const txs = mode==='all'
+    ? [...transactions].sort((a,b)=>a.date.localeCompare(b.date))
+    : getFiltered(
+        document.getElementById('fl-from').value,
+        document.getElementById('fl-to').value,
+        document.getElementById('fl-type').value
+      );
+
+  const ws_data = [
+    ["Date","Reference","Description","Category","Account","Type","Amount"],
+    ...txs.map(t=>[t.date, t.ref||'', t.desc, t.category, t.account, t.type, t.amount])
+  ];
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(ws_data);
+  ws['!cols'] = [{wch:12},{wch:14},{wch:40},{wch:22},{wch:20},{wch:10},{wch:14}];
+  XLSX.utils.book_append_sheet(wb, ws, "Transactions");
+  XLSX.writeFile(wb, `NGO_Ledger_${today()}.xlsx`);
+  toast('Excel file exported!');
+}
+
+function exportPNLExcel(){
+  const from = document.getElementById('pnl-from').value || yearStart();
+  const to   = document.getElementById('pnl-to').value   || today();
+  const txs  = getFiltered(from, to, '');
+  const incByCat = sumByCategory(txs,'income');
+  const expByCat = sumByCategory(txs,'expense');
+  const totalInc = Object.values(incByCat).reduce((s,v)=>s+v,0);
+  const totalExp = Object.values(expByCat).reduce((s,v)=>s+v,0);
+  const net = totalInc - totalExp;
+
+  const rows = [
+    [settings.orgName],
+    ['Income Statement'],
+    [`Period: ${from} to ${to}`],
+    [],
+    ['INCOME','','Amount'],
+  ];
+  const incGroups = {"Grants & Subsidies":[],"Donations":[],"Other Income":[]};
+  ACCOUNTS.filter(a=>a.type==='Income').forEach(a=>{
+    if(incByCat[a.name]) incGroups[a.sub].push([a.name,'',incByCat[a.name]]);
+  });
+  Object.entries(incGroups).forEach(([g,items])=>{
+    if(!items.length) return;
+    rows.push([g]);
+    items.forEach(i=>rows.push(['  '+i[0],'',i[2]]));
+    rows.push(['Subtotal – '+g,'',items.reduce((s,i)=>s+i[2],0)]);
+  });
+  rows.push(['TOTAL INCOME','',totalInc]);
+  rows.push([]);
+  rows.push(['EXPENSES','','Amount']);
+
+  const expGroups = {"Personnel Costs":[],"Program Expenses":[],"Admin & Overhead":[]};
+  ACCOUNTS.filter(a=>a.type==='Expense').forEach(a=>{
+    if(expByCat[a.name]) expGroups[a.sub].push([a.name,'',expByCat[a.name]]);
+  });
+  Object.entries(expGroups).forEach(([g,items])=>{
+    if(!items.length) return;
+    rows.push([g]);
+    items.forEach(i=>rows.push(['  '+i[0],'',i[2]]));
+    rows.push(['Subtotal – '+g,'',items.reduce((s,i)=>s+i[2],0)]);
+  });
+  rows.push(['TOTAL EXPENSES','',totalExp]);
+  rows.push([]);
+  rows.push([`NET ${net>=0?'SURPLUS':'DEFICIT'}`,'',net]);
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:36},{wch:4},{wch:18}];
+  XLSX.utils.book_append_sheet(wb, ws, "Income Statement");
+  XLSX.writeFile(wb, `NGO_PnL_${from}_to_${to}.xlsx`);
+  toast('P&L exported to Excel!');
+}
+
+function exportBSExcel(){
+  const asOf = document.getElementById('bs-date').value || today();
+  const cash = computeCashBalances(asOf);
+  const balMap = {...settings.openingBalances};
+  balMap["Cash on Hand"] = cash["Cash on Hand"];
+  balMap["Cash in Bank"] = cash["Cash in Bank"];
+  balMap["Petty Cash Fund"] = cash["Petty Cash Fund"];
+  const txs = transactions.filter(t=>t.date<=asOf);
+  const netSurplus = txs.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0)
+                   - txs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  balMap["Retained Surplus"] = settings.openingBalances["Retained Surplus"] + netSurplus;
+
+  const rows = [[settings.orgName],['Balance Sheet'],[`As of: ${asOf}`],[]];
+  rows.push(['ASSETS','','Balance']);
+  let totAsset=0;
+  ACCOUNTS.filter(a=>a.type==='Asset').forEach(a=>{
+    const b=balMap[a.name]||0;
+    totAsset+=b;
+    rows.push([a.name,'',b]);
+  });
+  rows.push(['TOTAL ASSETS','',totAsset],[]);
+  rows.push(['LIABILITIES','','Balance']);
+  let totLiab=0;
+  ACCOUNTS.filter(a=>a.type==='Liability').forEach(a=>{
+    const b=balMap[a.name]||0;
+    totLiab+=b;
+    rows.push([a.name,'',b]);
+  });
+  rows.push(['TOTAL LIABILITIES','',totLiab],[]);
+  rows.push(['NET ASSETS (EQUITY)','','Balance']);
+  let totEq=0;
+  ACCOUNTS.filter(a=>a.type==='Equity').forEach(a=>{
+    const b=balMap[a.name]||0;
+    totEq+=b;
+    rows.push([a.name,'',b]);
+  });
+  rows.push(['TOTAL NET ASSETS','',totEq],[]);
+  rows.push(['TOTAL LIABILITIES + NET ASSETS','',totLiab+totEq]);
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:34},{wch:4},{wch:18}];
+  XLSX.utils.book_append_sheet(wb, ws, "Balance Sheet");
+  XLSX.writeFile(wb, `NGO_BalanceSheet_${asOf}.xlsx`);
+  toast('Balance Sheet exported to Excel!');
+}
+
+// ══════════════════════════════════════════
+//  DRILL-DOWN MODAL
+// ══════════════════════════════════════════
+function openDrill(accountName, accountCode, accountType, asOf){
+  const bankAccounts = ["Cash on Hand","Cash in Bank","Petty Cash Fund"];
+  const isCash = bankAccounts.includes(accountName);
+  const isIncome  = accountType === 'Income';
+  const isExpense = accountType === 'Expense';
+
+  let txs = [];
+  if(isIncome || isExpense){
+    txs = transactions
+      .filter(t => (!asOf || t.date <= asOf) && t.category === accountName)
+      .sort((a,b) => a.date.localeCompare(b.date));
+  } else if(isCash){
+    txs = transactions
+      .filter(t => (!asOf || t.date <= asOf) && t.account === accountName)
+      .sort((a,b) => a.date.localeCompare(b.date));
+  } else {
+    // Static balance account — no live transactions, show info
+    txs = [];
+  }
+
+  const totalIn  = txs.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+  const totalOut = txs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+
+  document.getElementById('drill-title-name').textContent = `${accountCode} — ${accountName}`;
+  document.getElementById('drill-title-sub').textContent  = `${accountType} account · as of ${asOf||today()}`;
+  document.getElementById('drill-count').textContent  = txs.length;
+  document.getElementById('drill-debit').textContent  = fmt(totalOut);
+  document.getElementById('drill-credit').textContent = fmt(totalIn);
+
+  let rows = '';
+  if(txs.length === 0){
+    rows = `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:32px;font-style:italic">
+      No transactions found${isCash||isIncome||isExpense ? ' for this account' : ' — balance is carried from prior periods'}.
+    </td></tr>`;
+  } else {
+    let running = isCash ? (settings.openingBalances[accountName]||0) : 0;
+    rows = txs.map((t,i) => {
+      const isIn = t.type==='income';
+      running += isIn ? t.amount : -t.amount;
+      return `<tr>
+        <td style="color:var(--muted);font-size:.75rem">${i+1}</td>
+        <td>${t.date}</td>
+        <td style="font-size:.74rem;color:var(--muted)">${t.ref||'—'}</td>
+        <td>${t.desc}</td>
+        <td><span class="tx-type type-${t.type}">${t.type}</span></td>
+        <td class="num ${isIn?'pos':'neg'}" style="font-weight:600">${fmt(t.amount)}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  document.getElementById('drill-table').innerHTML = `
+    <thead><tr>
+      <th>#</th><th>Date</th><th>Reference</th><th>Description</th><th>Type</th><th class="num">Amount</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+    ${txs.length ? `<tfoot><tr class="tfoot">
+      <td colspan="5" style="text-align:right">Total</td>
+      <td class="num pos">${fmt(totalIn||totalOut)}</td>
+    </tr></tfoot>` : ''}
+  `;
+
+  document.getElementById('drill-overlay').classList.add('open');
+}
+
+function closeDrill(e){
+  if(e.target === document.getElementById('drill-overlay')) closeDrillModal();
+}
+function closeDrillModal(){
+  document.getElementById('drill-overlay').classList.remove('open');
+}
+document.addEventListener('keydown', e => { if(e.key==='Escape') closeDrillModal(); });
+
+// ══════════════════════════════════════════
+//  COA REPORT
+// ══════════════════════════════════════════
+function buildCOABalances(asOf){
+  const cash = computeCashBalances(asOf);
+  const txs  = transactions.filter(t => !asOf || t.date <= asOf);
+  const netSurplus = txs.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0)
+                   - txs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+
+  const incByCat = sumByCategory(txs,'income');
+  const expByCat = sumByCategory(txs,'expense');
+
+  const bal = {...settings.openingBalances};
+  bal["Cash on Hand"]    = cash["Cash on Hand"];
+  bal["Cash in Bank"]    = cash["Cash in Bank"];
+  bal["Petty Cash Fund"] = cash["Petty Cash Fund"];
+  bal["Retained Surplus"] = settings.openingBalances["Retained Surplus"] + netSurplus;
+
+  ACCOUNTS.filter(a=>a.type==='Income').forEach(a  => { bal[a.name] = incByCat[a.name] || 0; });
+  ACCOUNTS.filter(a=>a.type==='Expense').forEach(a => { bal[a.name] = expByCat[a.name] || 0; });
+
+  return bal;
+}
+
+const NORMAL_SIDE = { Asset:'Debit', Liability:'Credit', Equity:'Credit', Income:'Credit', Expense:'Debit' };
+
+function renderCOAReport(){
+  const filterType = document.getElementById('cor-type').value;
+  const asOf       = document.getElementById('cor-date').value || today();
+  const balMap     = buildCOABalances(asOf);
+
+  const types = ['Asset','Liability','Equity','Income','Expense'].filter(t => !filterType || t===filterType);
+
+  let grandDebit=0, grandCredit=0;
+  let sectionsHTML = '';
+
+  types.forEach(type => {
+    const accounts = ACCOUNTS.filter(a=>a.type===type);
+    const subs     = [...new Set(accounts.map(a=>a.sub))];
+    const normal   = NORMAL_SIDE[type];
+    let typeTotal  = 0;
+    let bodyHTML   = '';
+
+    subs.forEach(sub => {
+      const items = accounts.filter(a=>a.sub===sub);
+      let subTotal = 0;
+      bodyHTML += `<tr class="subsection-row"><td colspan="6">${sub}</td></tr>`;
+      items.forEach(a => {
+        const b = balMap[a.name] || 0;
+        subTotal  += b;
+        typeTotal += b;
+        if(normal==='Debit')  grandDebit  += b;
+        else                  grandCredit += b;
+        bodyHTML += `<tr>
+          <td style="padding-left:28px;font-size:.78rem;color:var(--teal-700);font-weight:600">${a.code}</td>
+          <td style="padding-left:4px">${a.name}</td>
+          <td style="font-size:.78rem;color:var(--muted)">${a.sub}</td>
+          <td style="font-size:.78rem;text-align:center">
+            <span style="padding:2px 8px;border-radius:99px;font-size:.68rem;font-weight:700;
+              background:${normal==='Debit'?'#dbeafe':'#fef3c7'};
+              color:${normal==='Debit'?'#1e40af':'#92400e'}">${normal}</span>
+          </td>
+          <td class="num ${normal==='Debit'?'pos':''}">
+            ${normal==='Debit' && b>0
+              ? `<span class="drill-amount" onclick="openDrill('${a.name.replace(/'/g,"\\'")}','${a.code}','${a.type}','${asOf}')">${fmt(b)}</span>`
+              : '—'}
+          </td>
+          <td class="num ${normal==='Credit'?'pos':''}">
+            ${normal==='Credit' && b>0
+              ? `<span class="drill-amount" onclick="openDrill('${a.name.replace(/'/g,"\\'")}','${a.code}','${a.type}','${asOf}')">${fmt(b)}</span>`
+              : '—'}
+          </td>
+        </tr>`;
+      });
+      bodyHTML += `<tr class="subtotal-row">
+        <td colspan="4" style="padding-left:28px;font-style:italic">Subtotal — ${sub}</td>
+        <td class="num">${normal==='Debit'  ? fmt(subTotal) : '—'}</td>
+        <td class="num">${normal==='Credit' ? fmt(subTotal) : '—'}</td>
+      </tr>`;
+    });
+
+    const typeColor = {Asset:'#dbeafe',Liability:'#fee2e2',Equity:'#fef3c7',Income:'#dcfce7',Expense:'#fce7f3'}[type];
+    const textColor = {Asset:'#1e40af',Liability:'#991b1b',Equity:'#92400e',Income:'#166534',Expense:'#9d174d'}[type];
+
+    sectionsHTML += `
+      <tr><td colspan="6" style="padding:0"></td></tr>
+      <tr class="section-row">
+        <td colspan="6">
+          <span style="background:${typeColor};color:${textColor};padding:3px 10px;border-radius:99px;font-size:.72rem;font-weight:700;margin-right:8px">${type.toUpperCase()}</span>
+          ${type}s
+        </td>
+      </tr>
+      ${bodyHTML}
+      <tr class="grand-total-row">
+        <td colspan="4">Total ${type}s</td>
+        <td class="num ${normal==='Debit'?'pos':''}">${normal==='Debit'  ? fmt(typeTotal):'—'}</td>
+        <td class="num ${normal==='Credit'?'pos':''}">${normal==='Credit' ? fmt(typeTotal):'—'}</td>
+      </tr>`;
+  });
+
+  const balanced  = Math.abs(grandDebit - grandCredit) < 1;
+  const tbHTML    = !filterType ? `
+    <div style="margin-top:20px">
+      <div class="card-title">Trial Balance Summary</div>
+      <table>
+        <thead><tr><th>Side</th><th class="num">Amount</th></tr></thead>
+        <tbody>
+          <tr><td>Total Debits (Assets + Expenses)</td><td class="num pos">${fmt(grandDebit)}</td></tr>
+          <tr><td>Total Credits (Liabilities + Equity + Income)</td><td class="num pos">${fmt(grandCredit)}</td></tr>
+        </tbody>
+        <tfoot><tr class="tfoot">
+          <td>${balanced ? '✓ Trial Balance is in balance' : '⚠ Out of balance by ' + fmt(Math.abs(grandDebit-grandCredit))}</td>
+          <td class="num ${balanced?'pos':'neg'}">${fmt(Math.abs(grandDebit-grandCredit))}</td>
+        </tr></tfoot>
+      </table>
+      <div style="margin-top:8px;padding:10px 14px;border-radius:8px;font-size:.8rem;font-weight:600;
+        background:${balanced?'#dcfce7':'#fee2e2'};color:${balanced?'#166534':'#991b1b'}">
+        ${balanced ? '✓ Accounting equation verified: Assets = Liabilities + Net Assets' : '⚠ Please check for missing entries'}
+      </div>
+    </div>` : '';
+
+  document.getElementById('coa-report-container').innerHTML = `
+    <div class="card">
+      <div class="report-meta">
+        <h3>${settings.orgName}</h3>
+        <p>Chart of Accounts Report${filterType ? ' — '+filterType+'s only':''}</p>
+        <p>As of: <strong>${asOf}</strong></p>
+      </div>
+      <div class="table-wrap" style="margin-top:8px">
+        <table>
+          <thead><tr>
+            <th>Code</th><th>Account Name</th><th>Sub-Category</th>
+            <th style="text-align:center">Normal Balance</th>
+            <th class="num">Debit Balance</th><th class="num">Credit Balance</th>
+          </tr></thead>
+          <tbody>${sectionsHTML}</tbody>
+          ${!filterType ? `<tfoot><tr class="tfoot">
+            <td colspan="4" style="text-align:right">Grand Total (Trial Balance)</td>
+            <td class="num pos">${fmt(grandDebit)}</td>
+            <td class="num pos">${fmt(grandCredit)}</td>
+          </tr></tfoot>` : ''}
+        </table>
+      </div>
+      ${tbHTML}
+    </div>`;
+}
+
+function exportCOAExcel(){
+  const filterType = document.getElementById('cor-type').value;
+  const asOf       = document.getElementById('cor-date').value || today();
+  const balMap     = buildCOABalances(asOf);
+  const types      = ['Asset','Liability','Equity','Income','Expense'].filter(t => !filterType || t===filterType);
+
+  const rows = [
+    [settings.orgName],
+    ['Chart of Accounts Report'],
+    [`As of: ${asOf}`],
+    [],
+    ['Code','Account Name','Sub-Category','Type','Normal Balance','Debit Balance','Credit Balance'],
+  ];
+
+  let grandDebit=0, grandCredit=0;
+  types.forEach(type => {
+    const normal = NORMAL_SIDE[type];
+    rows.push([`--- ${type.toUpperCase()}S ---`]);
+    const accounts = ACCOUNTS.filter(a=>a.type===type);
+    const subs = [...new Set(accounts.map(a=>a.sub))];
+    subs.forEach(sub => {
+      rows.push(['', sub]);
+      accounts.filter(a=>a.sub===sub).forEach(a => {
+        const b = balMap[a.name]||0;
+        if(normal==='Debit')  grandDebit  += b;
+        else                  grandCredit += b;
+        rows.push([
+          a.code, a.name, a.sub, a.type, normal,
+          normal==='Debit'  ? b : '',
+          normal==='Credit' ? b : '',
+        ]);
+      });
+    });
+    const typeTotal = accounts.reduce((s,a)=>s+(balMap[a.name]||0),0);
+    rows.push(['','',`Total ${type}s`,'','', normal==='Debit'?typeTotal:'', normal==='Credit'?typeTotal:'']);
+    rows.push([]);
+  });
+
+  if(!filterType){
+    rows.push(['','','Grand Total (Trial Balance)','','', grandDebit, grandCredit]);
+  }
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:8},{wch:30},{wch:22},{wch:12},{wch:14},{wch:16},{wch:16}];
+  XLSX.utils.book_append_sheet(wb, ws, 'Chart of Accounts');
+  XLSX.writeFile(wb, `NGO_COA_Report_${asOf}.xlsx`);
+  toast('COA Report exported to Excel!');
+}
+
+// ══════════════════════════════════════════
+//  BANK TRANSACTION REPORT
+// ══════════════════════════════════════════
+function getBankTxs(account, from, to){
+  const bankAccounts = ["Cash in Bank","Cash on Hand","Petty Cash Fund"];
+  return transactions
+    .filter(t => {
+      const inAcc = account ? t.account === account : bankAccounts.includes(t.account);
+      const afterFrom = !from || t.date >= from;
+      const beforeTo  = !to   || t.date <= to;
+      return inAcc && afterFrom && beforeTo;
+    })
+    .sort((a,b) => a.date.localeCompare(b.date) || a.id - b.id);
+}
+
+function openingBalance(account, before){
+  const bankAccounts = account ? [account] : ["Cash in Bank","Cash on Hand","Petty Cash Fund"];
+  let bal = bankAccounts.reduce((s,a) => s + (settings.openingBalances[a]||0), 0);
+  transactions
+    .filter(t => bankAccounts.includes(t.account) && (!before || t.date < before))
+    .forEach(t => { bal += t.type==='income' ? t.amount : -t.amount; });
+  return bal;
+}
+
+function renderBankReport(){
+  const account = document.getElementById('bk-account').value;
+  const from    = document.getElementById('bk-from').value;
+  const to      = document.getElementById('bk-to').value;
+  const txs     = getBankTxs(account, from, to);
+  const label   = account || 'All Bank Accounts';
+
+  let opening = openingBalance(account, from);
+  let totalDeposits = 0, totalWithdrawals = 0;
+
+  // summary cards per account when "All" selected
+  const bankAccounts = ["Cash in Bank","Cash on Hand","Petty Cash Fund"];
+  let summaryHTML = '';
+  if(!account){
+    summaryHTML = `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px">`;
+    bankAccounts.forEach(acc => {
+      const bal = openingBalance(acc, null);
+      summaryHTML += `
+        <div class="metric">
+          <div class="metric-label">${acc}</div>
+          <div class="metric-value" style="font-size:1.3rem">${fmt(bal)}</div>
+          <div class="metric-sub">Current balance</div>
+        </div>`;
+    });
+    summaryHTML += `</div>`;
+  }
+
+  let rows = '';
+  let running = opening;
+  txs.forEach((t, i) => {
+    const isDeposit = t.type === 'income';
+    if(isDeposit) totalDeposits += t.amount; else totalWithdrawals += t.amount;
+    running += isDeposit ? t.amount : -t.amount;
+    rows += `<tr>
+      <td style="color:var(--muted);font-size:.78rem">${i+1}</td>
+      <td>${t.date}</td>
+      <td style="font-size:.75rem;color:var(--muted)">${t.ref||'—'}</td>
+      <td>${t.desc}</td>
+      <td style="font-size:.78rem">${t.category}</td>
+      ${!account ? `<td style="font-size:.78rem">${t.account}</td>` : ''}
+      <td class="num pos">${isDeposit ? fmt(t.amount) : '—'}</td>
+      <td class="num neg">${!isDeposit ? fmt(t.amount) : '—'}</td>
+      <td class="num ${running>=0?'pos':'neg'}" style="font-weight:600">${fmt(running)}</td>
+    </tr>`;
+  });
+
+  const closing = running;
+  const acctCol = !account ? '<th>Account</th>' : '';
+
+  const html = `
+    ${summaryHTML}
+    <div class="card">
+      <div class="report-meta">
+        <h3>${settings.orgName}</h3>
+        <p>Bank Transaction Report — <strong>${label}</strong></p>
+        <p>${from||'All dates'} ${to ? 'to '+to : ''}</p>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:16px 0;padding:0 4px">
+        <div style="background:var(--teal-50);border-radius:8px;padding:12px 16px">
+          <div style="font-size:.68rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)">Opening Balance</div>
+          <div style="font-family:'DM Serif Display',serif;font-size:1.2rem;color:var(--teal-900);margin-top:4px">${fmt(opening)}</div>
+        </div>
+        <div style="background:#dcfce7;border-radius:8px;padding:12px 16px">
+          <div style="font-size:.68rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#166534">Total Deposits</div>
+          <div style="font-family:'DM Serif Display',serif;font-size:1.2rem;color:#166534;margin-top:4px">${fmt(totalDeposits)}</div>
+        </div>
+        <div style="background:#fee2e2;border-radius:8px;padding:12px 16px">
+          <div style="font-size:.68rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#991b1b">Total Withdrawals</div>
+          <div style="font-family:'DM Serif Display',serif;font-size:1.2rem;color:#991b1b;margin-top:4px">${fmt(totalWithdrawals)}</div>
+        </div>
+        <div style="background:var(--teal-800);border-radius:8px;padding:12px 16px">
+          <div style="font-size:.68rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--teal-400)">Closing Balance</div>
+          <div style="font-family:'DM Serif Display',serif;font-size:1.2rem;color:#fff;margin-top:4px">${fmt(closing)}</div>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>#</th><th>Date</th><th>Reference</th><th>Description</th><th>Category</th>
+            ${acctCol}
+            <th class="num">Deposits (In)</th><th class="num">Withdrawals (Out)</th><th class="num">Running Balance</th>
+          </tr></thead>
+          <tbody>
+            <tr style="background:var(--teal-50)">
+              <td colspan="${account?'8':'9'}" style="font-weight:600;color:var(--teal-700);font-style:italic">
+                Opening Balance — ${from||'beginning'}
+              </td>
+            </tr>
+            <tr class="subtotal-row">
+              <td colspan="${account?'7':'8'}"></td>
+              <td class="num" style="font-weight:700">${fmt(opening)}</td>
+            </tr>
+            ${rows||`<tr><td colspan="${account?'9':'10'}" style="text-align:center;color:var(--muted);padding:24px">No transactions found for this period.</td></tr>`}
+          </tbody>
+          <tfoot>
+            <tr class="tfoot">
+              <td colspan="${account?'5':'6'}" style="text-align:right">Totals</td>
+              <td class="num pos">${fmt(totalDeposits)}</td>
+              <td class="num neg">${fmt(totalWithdrawals)}</td>
+              <td class="num ${closing>=0?'pos':'neg'}">${fmt(closing)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>`;
+
+  document.getElementById('bank-report-container').innerHTML = html;
+}
+
+function exportBankExcel(){
+  const account = document.getElementById('bk-account').value;
+  const from    = document.getElementById('bk-from').value;
+  const to      = document.getElementById('bk-to').value;
+  const txs     = getBankTxs(account, from, to);
+  const label   = account || 'All Accounts';
+  let opening   = openingBalance(account, from);
+  let running   = opening;
+
+  const rows = [
+    [settings.orgName],
+    ['Bank Transaction Report'],
+    [`Account: ${label}`],
+    [`Period: ${from||'All'} to ${to||'All'}`],
+    [],
+    ['#','Date','Reference','Description','Category','Account','Deposits (In)','Withdrawals (Out)','Running Balance'],
+    ['','','','','','','Opening Balance','',opening],
+  ];
+
+  txs.forEach((t,i) => {
+    const isDeposit = t.type==='income';
+    running += isDeposit ? t.amount : -t.amount;
+    rows.push([
+      i+1, t.date, t.ref||'', t.desc, t.category, t.account,
+      isDeposit ? t.amount : '',
+      !isDeposit ? t.amount : '',
+      running
+    ]);
+  });
+
+  const totalDep = txs.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+  const totalWit = txs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  rows.push([]);
+  rows.push(['','','','','','TOTALS', totalDep, totalWit, running]);
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:4},{wch:12},{wch:14},{wch:38},{wch:22},{wch:20},{wch:16},{wch:18},{wch:18}];
+  XLSX.utils.book_append_sheet(wb, ws, 'Bank Transactions');
+  XLSX.writeFile(wb, `NGO_BankReport_${label.replace(/ /g,'_')}_${(from||'all')}.xlsx`);
+  toast('Bank report exported to Excel!');
+}
+
+// ══════════════════════════════════════════
+//  USER MANAGEMENT
+// ══════════════════════════════════════════
+const ROLE_LABELS = { admin:'Administrator', accountant:'Accountant', viewer:'Viewer' };
+const ROLE_COLORS = { admin:'badge-blue', accountant:'badge-green', viewer:'badge-amber' };
+
+function renderUsers(){
+  const rows = USERS.map(u => {
+    const isSelf    = currentUser && u.username === currentUser.username;
+    const isLastAdmin = u.role==='admin' && USERS.filter(x=>x.role==='admin').length===1;
+    return `
+    <div style="display:grid;grid-template-columns:40px 1fr 140px 130px 160px;align-items:center;gap:12px;
+                padding:12px 4px;border-bottom:1px solid var(--border)">
+      <div class="user-avatar" style="width:36px;height:36px;font-size:.78rem;flex-shrink:0">
+        ${u.name.charAt(0).toUpperCase()}
+      </div>
+      <div>
+        <div style="font-weight:600;font-size:.88rem">${u.name}</div>
+        <div style="color:var(--muted);font-size:.75rem">@${u.username}</div>
+      </div>
+      <div><span class="metric-badge ${ROLE_COLORS[u.role]}">${ROLE_LABELS[u.role]}</span></div>
+      <div style="font-size:.75rem;color:var(--muted)">${isSelf ? '(you)' : ''}</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-secondary btn-sm" onclick="startEditUser('${u.username}')">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          Edit
+        </button>
+        <button class="btn btn-danger btn-sm"
+          ${isSelf || isLastAdmin ? 'disabled style="opacity:.4;cursor:not-allowed"' : `onclick="deleteUser('${u.username}')"`}
+          title="${isSelf ? 'Cannot delete your own account' : isLastAdmin ? 'Cannot delete the last admin' : ''}">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M9 6V4h6v2"/></svg>
+          Delete
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('users-list').innerHTML = rows ||
+    `<p style="color:var(--muted);padding:16px 0">No users found.</p>`;
+}
+
+function startEditUser(username){
+  const u = USERS.find(x=>x.username===username);
+  if(!u) return;
+  document.getElementById('uf-edit-username').value = username;
+  document.getElementById('uf-username').value      = u.username;
+  document.getElementById('uf-username').disabled   = true;
+  document.getElementById('uf-name').value          = u.name;
+  document.getElementById('uf-role').value          = u.role;
+  document.getElementById('uf-password').value      = '';
+  document.getElementById('uf-pw-hint').style.display = '';
+  document.getElementById('user-form-title').textContent = 'Edit User';
+  document.getElementById('uf-submit-btn').innerHTML =
+    `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save Changes`;
+  document.getElementById('uf-cancel-btn').style.display = '';
+  document.getElementById('page-users').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function cancelUserEdit(){
+  document.getElementById('uf-edit-username').value  = '';
+  document.getElementById('uf-username').value       = '';
+  document.getElementById('uf-username').disabled    = false;
+  document.getElementById('uf-name').value           = '';
+  document.getElementById('uf-role').value           = 'admin';
+  document.getElementById('uf-password').value       = '';
+  document.getElementById('uf-pw-hint').style.display = 'none';
+  document.getElementById('user-form-title').textContent = 'Add New User';
+  document.getElementById('uf-submit-btn').innerHTML =
+    `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add User`;
+  document.getElementById('uf-cancel-btn').style.display = 'none';
+}
+
+async function submitUserForm(){
+  const editingUsername = document.getElementById('uf-edit-username').value;
+  const username  = document.getElementById('uf-username').value.trim().toLowerCase();
+  const name      = document.getElementById('uf-name').value.trim();
+  const role      = document.getElementById('uf-role').value;
+  const rawPw     = document.getElementById('uf-password').value;
+
+  if(!username || !name){ toast('Username and display name are required.'); return; }
+  if(!/^[a-z0-9._-]+$/.test(username)){ toast('Username may only contain letters, numbers, . _ -'); return; }
+
+  if(editingUsername){
+    // Edit mode
+    const idx = USERS.findIndex(u=>u.username===editingUsername);
+    if(idx === -1) return;
+    const isLastAdmin = USERS[idx].role==='admin' && USERS.filter(u=>u.role==='admin').length===1;
+    if(isLastAdmin && role !== 'admin'){ toast('Cannot demote the last administrator.'); return; }
+    USERS[idx].name = name;
+    USERS[idx].role = role;
+    const updatePayload = { name, role };
+    if(rawPw){
+      USERS[idx].hash = await sha256(rawPw);
+      updatePayload.password_hash = USERS[idx].hash;
+    }
+    await sb.from('users').update(updatePayload).eq('username', editingUsername);
+    // Refresh sidebar if editing self
+    if(currentUser && currentUser.username===editingUsername){
+      currentUser = USERS[idx];
+      document.getElementById('user-display-name').textContent = currentUser.name;
+      document.getElementById('user-display-role').textContent = currentUser.roleLabel = ROLE_LABELS[role];
+      document.getElementById('user-avatar').textContent = currentUser.name.charAt(0).toUpperCase();
+    }
+    toast(`User "${name}" updated.`);
+    cancelUserEdit();
+  } else {
+    // Add mode
+    if(!rawPw){ toast('Password is required for new users.'); return; }
+    if(rawPw.length < 6){ toast('Password must be at least 6 characters.'); return; }
+    if(USERS.find(u=>u.username===username)){ toast('Username already exists.'); return; }
+    const hash = await sha256(rawPw);
+    USERS.push({ username, hash, name, role, roleLabel: ROLE_LABELS[role] });
+    await sb.from('users').insert({ username, password_hash: hash, name, role });
+    document.getElementById('uf-username').value  = '';
+    document.getElementById('uf-name').value      = '';
+    document.getElementById('uf-password').value  = '';
+    toast(`User "${name}" added.`);
+  }
+
+  renderUsers();
+}
+
+async function deleteUser(username){
+  const u = USERS.find(x=>x.username===username);
+  if(!u) return;
+  if(currentUser && currentUser.username===username){ toast('Cannot delete your own account.'); return; }
+  if(u.role==='admin' && USERS.filter(x=>x.role==='admin').length===1){
+    toast('Cannot delete the last administrator.'); return;
+  }
+  if(!confirm(`Delete user "${u.name}" (@${u.username})? This cannot be undone.`)) return;
+  const idx = USERS.findIndex(x=>x.username===username);
+  USERS.splice(idx, 1);
+  await sb.from('users').delete().eq('username', username);
+  renderUsers();
+  toast(`User "${u.name}" deleted.`);
+}
+
+// ══════════════════════════════════════════
+//  SETTINGS
+// ══════════════════════════════════════════
+const getOBAccounts = () => ACCOUNTS.filter(a => a.type === 'Asset' || a.type === 'Liability' || a.type === 'Equity');
+
+function applySettingsToUI(){
+  document.getElementById('sidebar-app-name').textContent = settings.appName;
+  document.getElementById('sidebar-org-name').textContent = settings.orgName;
+  document.getElementById('login-app-name').textContent   = settings.appName;
+  document.title = settings.appName + ' — Accounting';
+}
+
+function renderSettings(){
+  document.getElementById('st-app-name').value  = settings.appName;
+  document.getElementById('st-org-name').value  = settings.orgName;
+  document.getElementById('st-currency').value  = settings.currency;
+  document.getElementById('st-ob-date').value   = settings.openingDate;
+  renderOBTable();
+}
+
+function renderOBTable(){
+  const types = ['Asset','Liability','Equity'];
+  const typeColors = {Asset:'#dbeafe',Liability:'#fee2e2',Equity:'#fef3c7'};
+  const textColors = {Asset:'#1e40af',Liability:'#991b1b',Equity:'#92400e'};
+  let html = `<table><thead><tr>
+    <th>Code</th><th>Account Name</th><th>Type</th><th class="num">Opening Balance (${settings.currency})</th>
+  </tr></thead><tbody>`;
+
+  types.forEach(type => {
+    const accs = getOBAccounts().filter(a => a.type === type);
+    html += `<tr class="section-row"><td colspan="4">
+      <span style="background:${typeColors[type]};color:${textColors[type]};padding:2px 10px;border-radius:99px;font-size:.7rem;font-weight:700">${type.toUpperCase()}</span>
+    </td></tr>`;
+    accs.forEach(a => {
+      const val = settings.openingBalances[a.name] || 0;
+      html += `<tr>
+        <td style="font-size:.75rem;color:var(--teal-700);font-weight:600">${a.code}</td>
+        <td>${a.name}</td>
+        <td style="font-size:.75rem;color:var(--muted)">${a.sub}</td>
+        <td class="num">
+          <input type="number" id="ob-${a.code}" value="${val}" min="0" step="0.01"
+            style="width:160px;text-align:right;border:1.5px solid var(--border);border-radius:6px;padding:5px 8px;font-size:.84rem">
+        </td>
+      </tr>`;
+    });
+  });
+
+  html += `</tbody></table>`;
+  document.getElementById('ob-table-wrap').innerHTML = html;
+}
+
+async function syncSettings(){
+  const { error } = await sb.from('settings').upsert({
+    id: 1,
+    app_name:         settings.appName,
+    org_name:         settings.orgName,
+    currency:         settings.currency,
+    opening_date:     settings.openingDate,
+    opening_balances: settings.openingBalances,
+  });
+  if(error) console.error('Settings sync error:', error);
+}
+
+async function saveGeneralSettings(){
+  const appName  = document.getElementById('st-app-name').value.trim();
+  const orgName  = document.getElementById('st-org-name').value.trim();
+  const currency = document.getElementById('st-currency').value.trim();
+  const obDate   = document.getElementById('st-ob-date').value;
+  if(!appName || !orgName || !currency){ toast('Please fill in all fields.'); return; }
+  settings.appName     = appName;
+  settings.orgName     = orgName;
+  settings.currency    = currency;
+  settings.openingDate = obDate;
+  await syncSettings();
+  applySettingsToUI();
+  toast('General settings saved!');
+}
+
+async function saveOpeningBalances(){
+  getOBAccounts().forEach(a => {
+    const el = document.getElementById('ob-'+a.code);
+    if(el) settings.openingBalances[a.name] = parseFloat(el.value) || 0;
+  });
+  await syncSettings();
+  toast('Opening balances saved!');
+}
+
+async function clearOpeningBalances(){
+  if(!confirm('Reset all opening balances to zero?')) return;
+  getOBAccounts().forEach(a => { settings.openingBalances[a.name] = 0; });
+  await syncSettings();
+  renderOBTable();
+  toast('Opening balances cleared.');
+}
+
+async function resetTransactions(){
+  if(!confirm('Delete ALL transactions? This cannot be undone.')) return;
+  const { error } = await sb.from('transactions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  if(error){ toast('Reset failed: '+error.message); return; }
+  transactions = [];
+  toast('All transactions deleted.');
+}
+
+async function resetAll(){
+  if(!confirm('Reset EVERYTHING — all transactions and all opening balances to zero? This cannot be undone.')) return;
+  const { error } = await sb.from('transactions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  if(error){ toast('Reset failed: '+error.message); return; }
+  transactions = [];
+  getOBAccounts().forEach(a => { settings.openingBalances[a.name] = 0; });
+  await syncSettings();
+  renderOBTable();
+  toast('Chart of Accounts fully reset.');
+}
+
+// ══════════════════════════════════════════
+//  AUTH
+// ══════════════════════════════════════════
+// Users loaded from Supabase at startup — not hardcoded.
+let USERS = [];
+
+// Pages/actions each role can access (viewer = read-only)
+const WRITE_ROLES = ['admin','accountant'];
+
+let currentUser = null;
+
+async function sha256(str){
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+async function doLogin(e){
+  e.preventDefault();
+  const uname    = document.getElementById('login-username').value.trim().toLowerCase();
+  const pass     = document.getElementById('login-password').value;
+  const passHash = await sha256(pass);
+  const user     = USERS.find(u => u.username === uname && u.hash === passHash);
+  if(!user){
+    document.getElementById('login-error').classList.add('show');
+    document.getElementById('login-password').value = '';
+    document.getElementById('login-password').focus();
+    return;
+  }
+  document.getElementById('login-error').classList.remove('show');
+  currentUser = user;
+  sessionStorage.setItem('ngo_session', JSON.stringify({username: user.username}));
+  showApp();
+}
+
+function doLogout(){
+  if(!confirm('Sign out?')) return;
+  currentUser = null;
+  sessionStorage.removeItem('ngo_session');
+  document.getElementById('login-username').value = '';
+  document.getElementById('login-password').value = '';
+  document.getElementById('login-screen').classList.remove('login-screen-hidden');
+  applyRoleRestrictions();
+}
+
+function showApp(){
+  document.getElementById('login-screen').classList.add('login-screen-hidden');
+  // Update sidebar user badge
+  document.getElementById('user-avatar').textContent      = currentUser.name.charAt(0).toUpperCase();
+  document.getElementById('user-display-name').textContent = currentUser.name;
+  document.getElementById('user-display-role').textContent = currentUser.roleLabel;
+  // Sync login screen app name
+  document.getElementById('login-app-name').textContent   = settings.appName;
+  applyRoleRestrictions();
+  renderDashboard();
+}
+
+function applyRoleRestrictions(){
+  const canWrite = currentUser && WRITE_ROLES.includes(currentUser.role);
+  // Hide all write-action buttons for read-only users
+  document.querySelectorAll(
+    '#tx-form button[type=submit], #tx-form button[type=reset], #tx-cancel-btn, ' +
+    '.btn-danger, [onclick="addAccount()"], [onclick="saveGeneralSettings()"], ' +
+    '[onclick="saveOpeningBalances()"], [onclick="clearOpeningBalances()"], ' +
+    '[onclick="resetTransactions()"], [onclick="resetAll()"]'
+  ).forEach(el => { el.style.display = canWrite ? '' : 'none'; });
+
+  // Show/hide edit buttons in ledger table (re-rendered dynamically, handled via CSS class)
+  document.querySelectorAll('.edit-tx-btn').forEach(el => {
+    el.style.display = canWrite ? '' : 'none';
+  });
+
+  // Settings + Users nav: admin only
+  const isAdmin = currentUser && currentUser.role === 'admin';
+  const settingsNav = document.querySelector('[data-page="settings"]');
+  const usersNav    = document.querySelector('[data-page="users"]');
+  if(settingsNav) settingsNav.style.display = canWrite ? '' : 'none';
+  if(usersNav)    usersNav.style.display    = isAdmin  ? '' : 'none';
+
+  // Add role hint badge on journal page if read-only
+  const hint = document.getElementById('role-hint');
+  if(hint) hint.style.display = canWrite ? 'none' : '';
+}
+
+function checkSession(){
+  const stored = sessionStorage.getItem('ngo_session');
+  if(stored){
+    try{
+      const {username} = JSON.parse(stored);
+      const user = USERS.find(u=>u.username===username);
+      if(user){ currentUser = user; showApp(); return; }
+    }catch(_){}
+  }
+  // No valid session — show login
+  document.getElementById('login-screen').classList.remove('login-screen-hidden');
+}
+
+// ══════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════
+async function init(){
+  document.getElementById('tx-date').value  = today();
+  document.getElementById('pnl-from').value = yearStart();
+  document.getElementById('pnl-to').value   = today();
+  document.getElementById('bs-date').value  = today();
+  document.getElementById('cor-date').value = today();
+  document.getElementById('bk-from').value  = yearStart();
+  document.getElementById('bk-to').value    = today();
+  settings.openingDate = yearStart();
+
+  await loadAllData();
+
+  applySettingsToUI();
+  updateCoaSub();
+  populateSelects();
+  renderPNL();
+  renderBalanceSheet();
+  checkSession();
+}
+
+init();
+</script>
+</body>
+</html>
