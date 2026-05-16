@@ -966,6 +966,19 @@ input:focus,select:focus,textarea:focus{border-color:var(--teal-500);box-shadow:
           <label>Emergency Contact</label>
           <input type="text" id="mf-emergency" placeholder="Name & phone number">
         </div>
+        <div class="form-group">
+          <label>Introducer</label>
+          <input type="text" id="mf-introducer" placeholder="Name of person who referred">
+        </div>
+        <div class="form-group">
+          <label>Recruitment Source</label>
+          <select id="mf-source">
+            <option value="Referral">Referral</option>
+            <option value="Association">Association</option>
+            <option value="Online">Online</option>
+            <option value="Other" selected>Other</option>
+          </select>
+        </div>
         <div class="form-group" style="grid-column:1/-1">
           <label>Address</label>
           <textarea id="mf-address" rows="2" placeholder="Full mailing address" style="resize:vertical;border:1.5px solid var(--border);border-radius:8px;padding:8px 12px;font-size:.87rem;font-family:inherit;width:100%"></textarea>
@@ -1192,6 +1205,7 @@ async function loadAllData(){
       company: m.company_name||'', phone: m.phone||'', email: m.email||'',
       address: m.address||'', dob: m.date_of_birth||'', joined: m.date_joined||'',
       occupation: m.occupation||'', emergency: m.emergency_contact||'',
+      introducer: m.introducer||'', source: m.source||'Other',
       photoUrl: m.photo_url||'', status: m.status||'Active',
       isCommittee: m.is_committee||false, lastRenewedYear: m.last_renewed_year||null,
       notes: m.notes||''
@@ -2861,14 +2875,16 @@ function openMemberForm(){
   document.getElementById('mf-email').value      = '';
   document.getElementById('mf-dob').value        = '';
   document.getElementById('mf-joined').value     = today();
-  document.getElementById('mf-occupation').value = '';
-  document.getElementById('mf-emergency').value  = '';
-  document.getElementById('mf-address').value    = '';
-  document.getElementById('mf-status').value     = 'Active';
-  document.getElementById('mf-committee').checked= false;
-  document.getElementById('mf-notes').value      = '';
-  document.getElementById('mf-photo-file').value = '';
-  document.getElementById('mf-photo-preview').style.display  = 'none';
+  document.getElementById('mf-occupation').value  = '';
+  document.getElementById('mf-emergency').value   = '';
+  document.getElementById('mf-introducer').value  = '';
+  document.getElementById('mf-source').value      = 'Other';
+  document.getElementById('mf-address').value     = '';
+  document.getElementById('mf-status').value      = 'Active';
+  document.getElementById('mf-committee').checked = false;
+  document.getElementById('mf-notes').value       = '';
+  document.getElementById('mf-photo-file').value  = '';
+  document.getElementById('mf-photo-preview').style.display   = 'none';
   document.getElementById('mf-photo-placeholder').style.display = 'flex';
   document.getElementById('member-form-title').textContent = 'Add New Member';
   document.getElementById('mf-member-id').disabled = false;
@@ -2887,11 +2903,13 @@ function editMember(id){
   document.getElementById('mf-email').value      = m.email;
   document.getElementById('mf-dob').value        = m.dob;
   document.getElementById('mf-joined').value     = m.joined;
-  document.getElementById('mf-occupation').value = m.occupation;
-  document.getElementById('mf-emergency').value  = m.emergency;
-  document.getElementById('mf-address').value    = m.address;
-  document.getElementById('mf-status').value     = m.status;
-  document.getElementById('mf-committee').checked= m.isCommittee;
+  document.getElementById('mf-occupation').value  = m.occupation;
+  document.getElementById('mf-emergency').value   = m.emergency;
+  document.getElementById('mf-introducer').value  = m.introducer||'';
+  document.getElementById('mf-source').value      = m.source||'Other';
+  document.getElementById('mf-address').value     = m.address;
+  document.getElementById('mf-status').value      = m.status;
+  document.getElementById('mf-committee').checked = m.isCommittee;
   document.getElementById('mf-notes').value      = m.notes;
   document.getElementById('mf-photo-file').value = '';
   if(m.photoUrl){
@@ -2944,9 +2962,11 @@ async function submitMemberForm(){
   const email    = document.getElementById('mf-email').value.trim();
   const dob      = document.getElementById('mf-dob').value;
   const joined   = document.getElementById('mf-joined').value;
-  const occupation = document.getElementById('mf-occupation').value.trim();
-  const emergency  = document.getElementById('mf-emergency').value.trim();
-  const address  = document.getElementById('mf-address').value.trim();
+  const occupation  = document.getElementById('mf-occupation').value.trim();
+  const emergency   = document.getElementById('mf-emergency').value.trim();
+  const introducer  = document.getElementById('mf-introducer').value.trim();
+  const source      = document.getElementById('mf-source').value;
+  const address     = document.getElementById('mf-address').value.trim();
   const status   = document.getElementById('mf-status').value;
   const isCommittee = document.getElementById('mf-committee').checked;
   const notes    = document.getElementById('mf-notes').value.trim();
@@ -2968,12 +2988,12 @@ async function submitMemberForm(){
       const payload = {
         name, ic_passport:ic, company_name:company, phone, email,
         address, date_of_birth:dob||null, date_joined:joined||null,
-        occupation, emergency_contact:emergency, photo_url:photoUrl,
-        status, is_committee:isCommittee, notes
+        occupation, emergency_contact:emergency, introducer, source,
+        photo_url:photoUrl, status, is_committee:isCommittee, notes
       };
       const { error } = await sb.from('members').update(payload).eq('id', editId);
       if(error) throw error;
-      Object.assign(members[idx], { name, ic, company, phone, email, address, dob, joined, occupation, emergency, photoUrl, status, isCommittee, notes });
+      Object.assign(members[idx], { name, ic, company, phone, email, address, dob, joined, occupation, emergency, introducer, source, photoUrl, status, isCommittee, notes });
       toast(`Member "${name}" updated.`);
     } else {
       // Add mode
@@ -2985,12 +3005,12 @@ async function submitMemberForm(){
       const payload = {
         id: tempId, member_id:memberId, name, ic_passport:ic, company_name:company,
         phone, email, address, date_of_birth:dob||null, date_joined:joined||null,
-        occupation, emergency_contact:emergency, photo_url:photoUrl,
-        status, is_committee:isCommittee, last_renewed_year:null, notes
+        occupation, emergency_contact:emergency, introducer, source,
+        photo_url:photoUrl, status, is_committee:isCommittee, last_renewed_year:null, notes
       };
       const { error } = await sb.from('members').insert(payload);
       if(error) throw error;
-      members.push({ id:tempId, memberId, name, ic, company, phone, email, address, dob, joined, occupation, emergency, photoUrl, status, isCommittee, lastRenewedYear:null, notes });
+      members.push({ id:tempId, memberId, name, ic, company, phone, email, address, dob, joined, occupation, emergency, introducer, source, photoUrl, status, isCommittee, lastRenewedYear:null, notes });
       toast(`Member "${name}" added.`);
     }
     closeMemberForm();
@@ -3083,6 +3103,8 @@ function viewMember(id){
       ${field('Date Joined', m.joined)}
       ${field('Occupation', m.occupation)}
       ${field('Emergency Contact', m.emergency)}
+      ${field('Introducer', m.introducer)}
+      ${field('Recruitment Source', m.source)}
       ${m.address ? `<div style="grid-column:1/-1;margin-bottom:10px"><div style="font-size:.72rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em">Address</div><div style="font-size:.9rem;color:var(--ink);margin-top:2px">${m.address}</div></div>` : ''}
       ${m.notes ? `<div style="grid-column:1/-1;margin-bottom:10px"><div style="font-size:.72rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em">Notes</div><div style="font-size:.9rem;color:var(--ink);margin-top:2px">${m.notes}</div></div>` : ''}
     </div>
@@ -3118,9 +3140,9 @@ function renderMemberReport(type){
 
   if(type==='full'){
     let html = `<div class="report-meta"><h3>${settings.orgName}</h3><p>Full Member List</p><p>Generated: ${today()}</p></div>`;
-    html += `<div class="table-wrap"><table><thead><tr><th>Member ID</th><th>Name</th><th>Company</th><th>Phone</th><th>Email</th><th>Status</th><th>Committee</th><th>Joined</th></tr></thead><tbody>`;
+    html += `<div class="table-wrap"><table><thead><tr><th>Member ID</th><th>Name</th><th>Company</th><th>Phone</th><th>Email</th><th>Status</th><th>Committee</th><th>Source</th><th>Introducer</th><th>Joined</th></tr></thead><tbody>`;
     members.forEach(m=>{
-      html+=`<tr><td style="color:var(--teal-700);font-weight:600">${m.memberId}</td><td>${m.name}</td><td>${m.company||'—'}</td><td>${m.phone||'—'}</td><td>${m.email||'—'}</td><td>${memberStatusBadge(getMemberEffectiveStatus(m))}</td><td style="text-align:center">${m.isCommittee?'★':''}</td><td>${m.joined||'—'}</td></tr>`;
+      html+=`<tr><td style="color:var(--teal-700);font-weight:600">${m.memberId}</td><td>${m.name}</td><td>${m.company||'—'}</td><td>${m.phone||'—'}</td><td>${m.email||'—'}</td><td>${memberStatusBadge(getMemberEffectiveStatus(m))}</td><td style="text-align:center">${m.isCommittee?'★':''}</td><td>${m.source||'—'}</td><td>${m.introducer||'—'}</td><td>${m.joined||'—'}</td></tr>`;
     });
     html+=`</tbody></table></div>`;
     card.innerHTML = html;
@@ -3128,13 +3150,29 @@ function renderMemberReport(type){
 
   else if(type==='status'){
     const groups = ['Active','Overdue','Inactive','Suspended','Resigned'];
-    let html = `<div class="report-meta"><h3>${settings.orgName}</h3><p>Members by Status</p><p>Generated: ${today()}</p></div>`;
+    let html = `<div class="report-meta"><h3>${settings.orgName}</h3><p>Members by Status &amp; Recruitment Source</p><p>Generated: ${today()}</p></div>`;
+    // Recruitment source breakdown
+    const sources = ['Referral','Association','Online','Other'];
+    const srcColors = {Referral:'#dbeafe',Association:'#fef3c7',Online:'#dcfce7',Other:'#f3f4f6'};
+    const srcText   = {Referral:'#1e40af',Association:'#92400e',Online:'#166534',Other:'#374151'};
+    html+=`<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px">`;
+    sources.forEach(src=>{
+      const cnt = members.filter(m=>m.source===src).length;
+      html+=`<div class="metric-card" style="min-width:120px"><div class="metric-label">${src}</div><div class="metric-value" style="font-size:1.5rem">${cnt}</div><div style="font-size:.72rem;color:var(--muted)">${members.length?Math.round(cnt/members.length*100):0}% of total</div></div>`;
+    });
+    html+=`</div>`;
+    // By status tables
     groups.forEach(s=>{
       const list = members.filter(m=>getMemberEffectiveStatus(m)===s);
       if(!list.length) return;
       html+=`<div class="table-wrap"><div style="padding:10px 0 6px"><b>${memberStatusBadge(s)} &nbsp;${list.length} member${list.length!==1?'s':''}</b></div>
-      <table><thead><tr><th>Member ID</th><th>Name</th><th>Company</th><th>Phone</th></tr></thead><tbody>`;
-      list.forEach(m=>{ html+=`<tr><td style="color:var(--teal-700);font-weight:600">${m.memberId}</td><td>${m.name}</td><td>${m.company||'—'}</td><td>${m.phone||'—'}</td></tr>`; });
+      <table><thead><tr><th>Member ID</th><th>Name</th><th>Company</th><th>Phone</th><th>Source</th><th>Introducer</th></tr></thead><tbody>`;
+      list.forEach(m=>{
+        const sc = m.source||'Other';
+        html+=`<tr><td style="color:var(--teal-700);font-weight:600">${m.memberId}</td><td>${m.name}</td><td>${m.company||'—'}</td><td>${m.phone||'—'}</td>
+        <td><span style="background:${srcColors[sc]};color:${srcText[sc]};padding:2px 8px;border-radius:99px;font-size:.7rem;font-weight:700">${sc}</span></td>
+        <td style="color:var(--muted);font-size:.85rem">${m.introducer||'—'}</td></tr>`;
+      });
       html+=`</tbody></table></div>`;
     });
     card.innerHTML = html;
@@ -3186,8 +3224,8 @@ function renderMemberReport(type){
 function exportMemberReport(){
   const rows = [];
   if(currentMemberReport==='full'){
-    rows.push(['Member ID','Name','Company','Phone','Email','Status','Committee','Date Joined']);
-    members.forEach(m=>rows.push([m.memberId,m.name,m.company,m.phone,m.email,getMemberEffectiveStatus(m),m.isCommittee?'Yes':'No',m.joined]));
+    rows.push(['Member ID','Name','Company','Phone','Email','Status','Committee','Source','Introducer','Date Joined']);
+    members.forEach(m=>rows.push([m.memberId,m.name,m.company,m.phone,m.email,getMemberEffectiveStatus(m),m.isCommittee?'Yes':'No',m.source||'',m.introducer||'',m.joined]));
   } else if(currentMemberReport==='fee'){
     rows.push(['Member ID','Name','Date Paid','Amount']);
     members.forEach(m=>{ const p=memberPayments.find(x=>x.memberId===m.id&&x.year===CURRENT_YEAR); if(p) rows.push([m.memberId,m.name,p.paidDate,p.amount]); });
