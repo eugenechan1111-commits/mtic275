@@ -365,6 +365,9 @@ input:focus,select:focus,textarea:focus{border-color:var(--teal-500);box-shadow:
       </div>
       <button type="submit" class="login-btn">Sign In</button>
     </form>
+    <div style="margin-top:16px;text-align:center">
+      <a href="#" onclick="resetAdminPassword();return false" style="color:rgba(255,255,255,.45);font-size:.75rem;text-decoration:none" id="reset-admin-link">Forgot password? Reset admin access</a>
+    </div>
   </div>
 </div>
 
@@ -1187,6 +1190,19 @@ async function loadAllData(){
     if(uErr) throw uErr;
     USERS.length = 0;
     usrs.forEach(u => USERS.push({ username:u.username, hash:u.password_hash, name:u.name, role:u.role, roleLabel:ROLE_LABELS[u.role]||u.role }));
+
+    // Recovery: if users table is empty, seed a temporary admin
+    if(USERS.length === 0){
+      const tmpPw  = 'Admin@' + new Date().getFullYear();
+      const tmpHash = await sha256(tmpPw);
+      await sb.from('users').insert({ username:'admin', password_hash:tmpHash, name:'Administrator', role:'admin' });
+      USERS.push({ username:'admin', hash:tmpHash, name:'Administrator', role:'admin', roleLabel:'Administrator' });
+      // Show recovery notice on login screen after it renders
+      setTimeout(()=>{
+        const el = document.getElementById('login-error');
+        if(el){ el.textContent = `No users found — temporary admin created. Username: admin  Password: ${tmpPw}`; el.style.background='#fef3c7'; el.style.color='#92400e'; el.style.borderColor='#f59e0b'; el.classList.add('show'); }
+      }, 500);
+    }
 
     // Transactions
     showLoading(true, 'Loading transactions…');
@@ -2684,6 +2700,29 @@ async function doLogin(e){
   currentUser = user;
   sessionStorage.setItem('ngo_session', JSON.stringify({username: user.username}));
   showApp();
+}
+
+async function resetAdminPassword(){
+  const newPw = prompt('Enter a new password for the admin account (min 6 characters):');
+  if(!newPw || newPw.length < 6){ if(newPw !== null) alert('Password must be at least 6 characters.'); return; }
+  const hash = await sha256(newPw);
+  // Try update first, then insert if no admin exists
+  const { data: existing } = await sb.from('users').select('username').eq('username','admin').single();
+  let error;
+  if(existing){
+    ({ error } = await sb.from('users').update({ password_hash: hash }).eq('username','admin'));
+  } else {
+    ({ error } = await sb.from('users').insert({ username:'admin', password_hash:hash, name:'Administrator', role:'admin' }));
+  }
+  if(error){ alert('Reset failed: ' + error.message); return; }
+  // Update in-memory user
+  const idx = USERS.findIndex(u=>u.username==='admin');
+  if(idx >= 0) USERS[idx].hash = hash;
+  else USERS.push({ username:'admin', hash, name:'Administrator', role:'admin', roleLabel:'Administrator' });
+  const el = document.getElementById('login-error');
+  el.textContent = 'Admin password updated. You can now sign in.';
+  el.style.background='#dcfce7'; el.style.color='#166534'; el.style.borderColor='#86efac';
+  el.classList.add('show');
 }
 
 function doLogout(){
