@@ -1790,7 +1790,7 @@ function renderCOA(){
   types.forEach(type=>{
     const accounts = ACCOUNTS.filter(a=>a.type===type);
     const subs = [...new Set(accounts.map(a=>a.sub))];
-    html += `<div class="coa-type">${type.toUpperCase()}S &nbsp;<span style="font-weight:400;font-size:.75rem;opacity:.6">${accounts.length} account${accounts.length!==1?'s':''}</span></div>`;
+    html += `<div class="coa-type">${(TYPE_PLURAL[type]||type).toUpperCase()} &nbsp;<span style="font-weight:400;font-size:.75rem;opacity:.6">${accounts.length} account${accounts.length!==1?'s':''}</span></div>`;
     subs.forEach(sub=>{
       html += `<div class="coa-subtype">${sub}</div>`;
       accounts.filter(a=>a.sub===sub).forEach(a=>{
@@ -2042,7 +2042,7 @@ function buildCOABalances(asOf){
   bal["Cash on Hand"]    = cash["Cash on Hand"];
   bal["Cash in Bank"]    = cash["Cash in Bank"];
   bal["Petty Cash Fund"] = cash["Petty Cash Fund"];
-  bal["Retained Surplus"] = settings.openingBalances["Retained Surplus"] + netSurplus;
+  bal["Retained Surplus"] = settings.openingBalances["Retained Surplus"] || 0;
 
   ACCOUNTS.filter(a=>a.type==='Income').forEach(a  => { bal[a.name] = incByCat[a.name] || 0; });
   ACCOUNTS.filter(a=>a.type==='Expense').forEach(a => { bal[a.name] = expByCat[a.name] || 0; });
@@ -2050,7 +2050,8 @@ function buildCOABalances(asOf){
   return bal;
 }
 
-const NORMAL_SIDE = { Asset:'Debit', Liability:'Credit', Equity:'Credit', Income:'Credit', Expense:'Debit' };
+const NORMAL_SIDE  = { Asset:'Debit', Liability:'Credit', Equity:'Credit', Income:'Credit', Expense:'Debit' };
+const TYPE_PLURAL  = { Asset:'Assets', Liability:'Liabilities', Equity:'Equity', Income:'Income', Expense:'Expenses' };
 
 function renderCOAReport(){
   const filterType = document.getElementById('cor-type').value;
@@ -2115,12 +2116,12 @@ function renderCOAReport(){
       <tr class="section-row">
         <td colspan="6">
           <span style="background:${typeColor};color:${textColor};padding:3px 10px;border-radius:99px;font-size:.72rem;font-weight:700;margin-right:8px">${type.toUpperCase()}</span>
-          ${type}s
+          ${TYPE_PLURAL[type]}
         </td>
       </tr>
       ${bodyHTML}
       <tr class="grand-total-row">
-        <td colspan="4">Total ${type}s</td>
+        <td colspan="4">Total ${TYPE_PLURAL[type]}</td>
         <td class="num ${normal==='Debit'?'pos':''}">${normal==='Debit'  ? fmt(typeTotal):'—'}</td>
         <td class="num ${normal==='Credit'?'pos':''}">${normal==='Credit' ? fmt(typeTotal):'—'}</td>
       </tr>`;
@@ -2190,7 +2191,7 @@ function exportCOAExcel(){
   let grandDebit=0, grandCredit=0;
   types.forEach(type => {
     const normal = NORMAL_SIDE[type];
-    rows.push([`--- ${type.toUpperCase()}S ---`]);
+    rows.push([`--- ${(TYPE_PLURAL[type]||type).toUpperCase()} ---`]);
     const accounts = ACCOUNTS.filter(a=>a.type===type);
     const subs = [...new Set(accounts.map(a=>a.sub))];
     subs.forEach(sub => {
@@ -2207,7 +2208,7 @@ function exportCOAExcel(){
       });
     });
     const typeTotal = accounts.reduce((s,a)=>s+(balMap[a.name]||0),0);
-    rows.push(['','',`Total ${type}s`,'','', normal==='Debit'?typeTotal:'', normal==='Credit'?typeTotal:'']);
+    rows.push(['','',`Total ${TYPE_PLURAL[type]||type}`,'','', normal==='Debit'?typeTotal:'', normal==='Credit'?typeTotal:'']);
     rows.push([]);
   });
 
